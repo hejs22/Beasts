@@ -38,11 +38,20 @@ int main() { // client application
 
     // print out server's response
     printf("%s\n", server_response);
-    char buffer[1024] = "MOV|1";
+    char buffer[1024] = "OK";
 
     // send data to server
     send(network_socket, buffer, sizeof(buffer), 0);
 
+    char request[2];
+    request[0] = MOVE;
+    request[1] = UP;
+    for (int i = 0; i < 5; i++) {
+        send(network_socket, request, sizeof(request), 0);
+        recv(network_socket, buffer, sizeof(buffer), 0);
+        printf("%s\n", buffer);
+        usleep(3000000);
+    }
     usleep(20000000);
 
     close(network_socket);

@@ -59,6 +59,7 @@ void *client_server_connection_handler(void *arg) {
     char client_buffer[1024];
     int socket = *(int *) arg;
     int connected = 1;
+    char buffer[1024];
 
     int flag = 0;
     if (is_open(socket)) {
@@ -92,6 +93,43 @@ void *client_server_connection_handler(void *arg) {
         }
 
         // Handle client's requests TODO
+        long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
+        if (bytes_received > 0) {
+            enum COMMAND request = (enum COMMAND) buffer[0];
+            int parameter = (int) buffer[1];
+
+            switch (request) {
+                case MOVE:
+                    switch (parameter) {
+                        case UP:
+                            send(socket, "UP", 2, 0);
+                            break;
+                        case DOWN:
+                            send(socket, "DOWN", 4, 0);
+                            break;
+                        case LEFT:
+                            send(socket, "LEFT", 4, 0);
+                            break;
+                        case RIGHT:
+                            send(socket, "RIGHT", 5, 0);
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case WAIT:
+                    send(socket, "WAIT", 4, 0);
+                    break;
+                case QUIT:
+                    send(socket, "QUIT", 4, 0);
+                    break;
+                case GET_MAP:
+                    send(socket, "GET_MAP", 7, 0);
+                    break;
+                default:
+                    break;
+            }
+        }
 
     }
     pthread_exit(NULL);
