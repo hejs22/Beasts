@@ -60,16 +60,22 @@ void *client_server_connection_handler(void *arg) {
     int socket = *(int *) arg;
     int connected = 1;
 
+    int flag = 0;
     if (is_open(socket)) {
         // check for empty slots, if any is found create player
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
                 world.players[world.active_players] = create_player(socket);
                 world.active_players++;
+                flag = 1;
                 break;
             }
         }
-        // if all slots are taken TODO
+    }
+    // if all slots are taken disconnect and exit
+    if (flag == 0) {
+        disconnect_socket(socket);
+        pthread_exit(NULL);
     }
 
     while (connected) {
@@ -94,7 +100,7 @@ void *client_server_connection_handler(void *arg) {
 void *listen_for_clients(void *arg) {
     int client_socket;
     struct sockaddr_in client;
-    socklen_t client_size = sizeof(client);
+    //socklen_t client_size = sizeof(client);
 
     client_socket = accept(server.socket, NULL, NULL);
     send(client_socket, server.message, sizeof(server.message), 0);
@@ -102,9 +108,20 @@ void *listen_for_clients(void *arg) {
     recv(client_socket, server.buffer, sizeof(server.buffer), 0);
     //printf("Player %s joined the server.\n", server.buffer);
 
-    int i = 0;
-    while (server.clients[i] != -1) i++;
-    server.clients[i] = client_socket;
+    // check for empty client slots
+    int flag = 1, i;
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        if (server.clients[i] == -1) {
+            server.clients[i] = client_socket;
+            flag = 0;
+            break;
+        }
+    }
+    // if all slots are taken, disconnect socket and exit
+    if (flag) {
+        disconnect_socket(client_socket);
+        pthread_exit(NULL);
+    }
 
     // create a handler thread for each connection and remember client's socket
     pthread_t handler;
@@ -128,15 +145,15 @@ void *key_listener(void *arg) {
                 break;
             case 'c':
                 key = '0';
-                create_treasure(1);
+                create_object(SMALL_TREASURE);
                 break;
             case 't':
                 key = '0';
-                create_treasure(2);
+                create_object(MEDIUM_TREASURE);
                 break;
             case 'T':
                 key = '0';
-                create_treasure(3);
+                create_object(BIG_TREASURE);
                 break;
             case 'B':
             case 'b':
@@ -144,7 +161,8 @@ void *key_listener(void *arg) {
                 // add beasts TODO
 
                 break;
-
+            default:
+                key = '0';
         }
     }
 
@@ -182,6 +200,7 @@ void *game(void *arg) {
 }
 
 int main() { // server application
+    srand(time(NULL));
     init_server();
     load_map();
 

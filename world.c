@@ -62,6 +62,10 @@ void print_map() {  // prints map on console based on world.map[][]
             }
         }
     }
+
+    for (int i = 0; i < TREASURES_AMOUNT; i++) create_object(rand() % 3 + 1);
+    for (int i = 0; i < BUSHES_AMOUNT; i++) create_object(BUSH);
+
 }
 
 void print_info() {    // prints all additional info on console
@@ -86,24 +90,35 @@ void print_info() {    // prints all additional info on console
     mvprintw(INFO_POS_Y + 11, INFO_POS_X, "Legend: ");
 }
 
-void create_treasure(enum COMMAND TYPE) {
+void create_object(enum TILE TYPE) {
     int flag = 1;
     while (flag) {
         int rand_y = rand() % MAP_WIDTH;
         int rand_x = rand() % MAP_HEIGHT;
         if (world.map[rand_x][rand_y] == ' ') {
-            attron(COLOR_PAIR(3));
-            if (TYPE == 1) {
-                world.map[rand_x][rand_y] = 'c';
-                mvprintw(1 + rand_x, 3 + rand_y, "c");
-            } else if (TYPE == 2) {
-                world.map[rand_x][rand_y] = 't';
-                mvprintw(1 + rand_x, 3 + rand_y, "t");
-            } else if (TYPE == 3) {
-                world.map[rand_x][rand_y] = 'T';
-                mvprintw(1 + rand_x, 3 + rand_y, "T");
+
+            if (TYPE == BUSH) {
+                attron(COLOR_PAIR(2));
+                world.map[rand_x][rand_y] = '#';
+                mvprintw(1 + rand_x, 3 + rand_y, "#");
+                attroff(COLOR_PAIR(2));
+
+            } else {
+                attron(COLOR_PAIR(3));
+                if (TYPE == SMALL_TREASURE) {
+                    world.map[rand_x][rand_y] = 'c';
+                    mvprintw(1 + rand_x, 3 + rand_y, "c");
+
+                } else if (TYPE == MEDIUM_TREASURE) {
+                    world.map[rand_x][rand_y] = 't';
+                    mvprintw(1 + rand_x, 3 + rand_y, "t");
+
+                } else if (TYPE == BIG_TREASURE) {
+                    world.map[rand_x][rand_y] = 'T';
+                    mvprintw(1 + rand_x, 3 + rand_y, "T");
+                }
+                attroff(COLOR_PAIR(3));
             }
-            attroff(COLOR_PAIR(3));
             flag = 0;
         }
     }
@@ -113,7 +128,7 @@ struct Player *create_player(int socket) {
     struct Player *new = malloc(sizeof(struct Player));
     if (new == NULL) return NULL;
 
-    int flag = 1, rand_y = 0, rand_x = 0;
+    int flag = 1, rand_y, rand_x;
 
     while (flag) {
         rand_y = rand() % MAP_WIDTH;

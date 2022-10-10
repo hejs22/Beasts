@@ -3,6 +3,8 @@
 
 #define MAX_CLIENTS 4
 #define MAX_BEASTS 10
+#define TREASURES_AMOUNT 50
+#define BUSHES_AMOUNT 120
 #define MAP_HEIGHT 28
 #define MAP_WIDTH 86
 #define INFO_POS_Y MAP_HEIGHT + 2
