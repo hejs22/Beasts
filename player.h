@@ -1,14 +1,12 @@
-#include <pthread.h>
-
 #ifndef CLIENT_PLAYER_H
 #define CLIENT_PLAYER_H
 
-enum DIRECTION {UP, RIGHT, DOWN, LEFT};
+enum DIRECTION {UP, RIGHT, DOWN, LEFT, STOP};
 enum PLAYERTYPE {CPU, BEAST, HUMAN};
 enum COMMAND {MOVE, QUIT, JOIN, WAIT, GET_MAP, SPAWN_BEAST, SPAWN_CPU, SPAWN_SMALL_TREASURE, SPAWN_MEDIUM_TREASURE, SPAWN_BIG_TREASURE};
 
 struct Player {
-    int pox_x;
+    int pos_x;
     int pos_y;
     int spawn_x;
     int spawn_y;
@@ -17,7 +15,7 @@ struct Player {
     int coins_carried;
     int coins_saved;
     int bush;
-    int port;
+    int socket;
     pthread_t pid;
 };
 
@@ -28,5 +26,6 @@ struct Beast {
     int port;
     pthread_t pid;
 };
+
 
 #endif //CLIENT_PLAYER_H

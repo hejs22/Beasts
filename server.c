@@ -10,8 +10,9 @@
 #include "config.h"
 #include "world.h"
 #include "server.h"
+#include "player.h"
 
-pthread_t listeningThread, playingThread;
+pthread_t listeningThread, playingThread, keyListenerThread;
 
 void init_server() {
     // set server parameters
@@ -47,7 +48,7 @@ int is_open(int socket) {
 void disconnect_socket(int socket) {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (server.clients[i] == socket) {
-            printf("Client at socket %d disconnected. \n", socket);
+           // printf("Client at socket %d disconnected. \n", socket);
             server.clients[i] = -1;
             close(socket);
         }
@@ -59,16 +60,33 @@ void *client_server_connection_handler(void *arg) {
     int socket = *(int *) arg;
     int connected = 1;
 
+    if (is_open(socket)) {
+        // check for empty slots, if any is found create player
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (server.clients[i] == -1) {
+                world.players[world.active_players] = create_player(socket);
+                world.active_players++;
+                break;
+            }
+        }
+        // if all slots are taken TODO
+    }
+
     while (connected) {
+        // if client isn't connected, disconnect his socket and free his Player structure
         if (!is_open(socket)) {
-            disconnect_socket(socket);
+            for (int i = 0; i < MAX_CLIENTS; i++) {
+                if (world.players[i]->socket == socket) {
+                    disconnect_socket(socket);
+                    deletePlayer(world.players[i]);
+                    break;
+                }
+            }
             connected = 0;
         }
 
-        recv(socket, client_buffer, sizeof(client_buffer), 0);
-        //if (res > 0) printf("Client %d: %s\n", socket, client_buffer);
-        //usleep(100000);
-        //printf("%d\n", *(int *) arg);
+        // Handle client's requests TODO
+
     }
     pthread_exit(NULL);
 }
@@ -82,7 +100,7 @@ void *listen_for_clients(void *arg) {
     send(client_socket, server.message, sizeof(server.message), 0);
 
     recv(client_socket, server.buffer, sizeof(server.buffer), 0);
-    printf("Player %s joined the server.\n", server.buffer);
+    //printf("Player %s joined the server.\n", server.buffer);
 
     int i = 0;
     while (server.clients[i] != -1) i++;
@@ -95,10 +113,46 @@ void *listen_for_clients(void *arg) {
     pthread_exit(NULL);
 }
 
+void *key_listener(void *arg) {
+    noecho();
+    //printw("Entered into key listener");
+    while (server.up) {
+        unsigned char key = getch();
+
+        switch (key) {
+            case 'Q':
+            case 'q':
+                key = '0';
+                printw("q");
+                //endGame();
+                break;
+            case 'c':
+                key = '0';
+                create_treasure(1);
+                break;
+            case 't':
+                key = '0';
+                create_treasure(2);
+                break;
+            case 'T':
+                key = '0';
+                create_treasure(3);
+                break;
+            case 'B':
+            case 'b':
+                key = '0';
+                // add beasts TODO
+
+                break;
+
+        }
+    }
+
+    pthread_exit(NULL);
+}
+
 void init_ui() {
     initscr();
-    keypad(stdscr, TRUE);
-    noecho();
 
     if (has_colors() == TRUE) {
         start_color();
@@ -106,8 +160,8 @@ void init_ui() {
         init_pair(2, COLOR_GREEN, COLOR_BLACK); // Green for bushes
         init_pair(3, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
         init_pair(4, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
-        init_pair(5, COLOR_BLUE, COLOR_BLACK); // Blue for players
-        init_pair(5, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
+        init_pair(5, COLOR_CYAN, COLOR_BLACK); // Blue for players
+        init_pair(6, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
     }
 
     // Printing server's view
@@ -115,23 +169,21 @@ void init_ui() {
     print_info();
 
     refresh();
-    while(1) {
-        getch();
-        refresh();
-    }
-    endwin(); //koniec
 }
 
 void *game(void *arg) {
     init_ui();
+    noecho();
+    pthread_create(&keyListenerThread, NULL, key_listener, NULL);
+
+    // game logic TODO
+
     pthread_exit(NULL);
 }
 
 int main() { // server application
-
     init_server();
     load_map();
-    //init_ui();
 
     pthread_create(&playingThread, NULL, game, NULL);
 

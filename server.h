@@ -1,17 +1,7 @@
 #ifndef CLIENT_SERVER_H
 #define CLIENT_SERVER_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <string.h>
-#include <ncurses.h>
 #include <pthread.h>
-#include "config.h"
-#include "world.h"
 
 struct ServerInfo {
     // connection parameters
@@ -23,7 +13,7 @@ struct ServerInfo {
     int number_of_clients;
     int up;
     char message[256];
-    char buffer[1024]
+    char buffer[1024];
 } server;
 
 struct ClientInfo {
@@ -31,5 +21,7 @@ struct ClientInfo {
     int port;
     pthread_t thread;
 };
+
+void disconnect_socket(int);
 
 #endif //CLIENT_SERVER_H

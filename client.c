@@ -4,9 +4,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <ncurses.h>
 #include <string.h>
-
+#include <ncurses.h>
+#include <pthread.h>
+#include "config.h"
+#include "world.h"
+#include "server.h"
+#include "player.h"
 int main() { // client application
 
     // create a socket
