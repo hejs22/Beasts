@@ -11,7 +11,7 @@
 #include "world.h"
 #include "server.h"
 
-pthread_t listeningThread;
+pthread_t listeningThread, playingThread;
 
 void init_server() {
     // set server parameters
@@ -122,16 +122,22 @@ void init_ui() {
     endwin(); //koniec
 }
 
+void *game(void *arg) {
+    init_ui();
+    pthread_exit(NULL);
+}
+
 int main() { // server application
 
     init_server();
-    //load_map();
+    load_map();
     //init_ui();
+
+    pthread_create(&playingThread, NULL, game, NULL);
 
     while (server.up) {
         pthread_create(&listeningThread, NULL, listen_for_clients, NULL);
         pthread_join(listeningThread, NULL);
-
     }
 
     return 0;
