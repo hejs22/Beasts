@@ -57,6 +57,7 @@ void disconnect_socket(int socket) {
 
 void *client_server_connection_handler(void *arg) {
     char client_buffer[1024];
+    struct Player *player;
     int socket = *(int *) arg;
     int connected = 1;
     char buffer[1024];
@@ -67,6 +68,7 @@ void *client_server_connection_handler(void *arg) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
                 world.players[world.active_players] = create_player(socket);
+                player = world.players[world.active_players];
                 world.active_players++;
                 flag = 1;
                 break;
@@ -103,15 +105,19 @@ void *client_server_connection_handler(void *arg) {
                     switch (parameter) {
                         case UP:
                             send(socket, "UP", 2, 0);
+                            movePlayer(player, UP);
                             break;
                         case DOWN:
                             send(socket, "DOWN", 4, 0);
+                            movePlayer(player, DOWN);
                             break;
                         case LEFT:
                             send(socket, "LEFT", 4, 0);
+                            movePlayer(player, LEFT);
                             break;
                         case RIGHT:
                             send(socket, "RIGHT", 5, 0);
+                            movePlayer(player, RIGHT);
                             break;
                         default:
                             break;
@@ -122,6 +128,7 @@ void *client_server_connection_handler(void *arg) {
                     break;
                 case QUIT:
                     send(socket, "QUIT", 4, 0);
+                    connected = 0;
                     break;
                 case GET_MAP:
                     send(socket, "GET_MAP", 7, 0);
@@ -129,6 +136,7 @@ void *client_server_connection_handler(void *arg) {
                 default:
                     break;
             }
+            refresh();
         }
 
     }

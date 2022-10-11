@@ -6,10 +6,10 @@ enum PLAYERTYPE {CPU, BEAST, HUMAN};
 enum COMMAND {MOVE, QUIT, JOIN, WAIT, GET_MAP, SPAWN_BEAST, SPAWN_CPU, SPAWN_SMALL_TREASURE, SPAWN_MEDIUM_TREASURE, SPAWN_BIG_TREASURE};
 
 struct Player {
-    int pos_x;
-    int pos_y;
-    int spawn_x;
-    int spawn_y;
+    int pos_row;
+    int pos_col;
+    int spawn_row;
+    int spawn_col;
     enum DIRECTION dir;
     int deaths;
     int coins_carried;
@@ -20,8 +20,8 @@ struct Player {
 };
 
 struct Beast {
-    int pos_x;
-    int pos_y;
+    int pos_row;
+    int pos_col;
     int bush;
     int port;
     pthread_t pid;
