@@ -153,8 +153,10 @@ void handle_collision(struct Player *P, int row, int col) {
         P->coins_carried = 0;
         // prevent despawning of campfire TODO
     }
-    else if ((world.map[row][col] == '@') || (world.map[row][col] == '*')) {
+    else if (world.map[row][col] == '*') {
         // kill player TODO
+    } else if (world.map[row][col] == '@') {
+        // kill both players
     }
     else if (world.map[row][col] == '#') {
         P->bush = 2;
@@ -178,7 +180,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
            if (validMove(player->pos_row - 1, player->pos_col)) {
                handle_collision(player, player->pos_row - 1, player->pos_col);
                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-               else print_tile(EMPTY, player->pos_row, player->pos_col);
+               else if (player->bush == 0) (EMPTY, player->pos_row, player->pos_col);
                print_tile(PLAYER, player->pos_row - 1, player->pos_col);
                player->pos_row -= 1;
             }
@@ -186,7 +188,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
         case DOWN:
             if (validMove(player->pos_row + 1, player->pos_col)) {
                 if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                else print_tile(EMPTY, player->pos_row, player->pos_col);
+                else if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_tile(PLAYER, player->pos_row + 1, player->pos_col);
                 player->pos_row += 1;
             }
@@ -194,7 +196,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
         case LEFT:
             if (validMove(player->pos_row, player->pos_col - 1)) {
                 if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                else print_tile(EMPTY, player->pos_row, player->pos_col);
+                else if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_tile(PLAYER, player->pos_row, player->pos_col - 1);
                 player->pos_col -= 1;
             }
@@ -202,7 +204,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
         case RIGHT:
             if (validMove(player->pos_row, player->pos_col + 1)) {
                 if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                else print_tile(EMPTY, player->pos_row, player->pos_col);
+                else if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_tile(PLAYER, player->pos_row, player->pos_col + 1);
                 player->pos_col += 1;
             }
@@ -212,6 +214,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
         default:
             break;
     }
+    player->bush = 0;
 }
 
 struct Player *create_player(int socket) {

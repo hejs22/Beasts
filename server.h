@@ -12,6 +12,7 @@ struct ServerInfo {
     // additional parameters
     int number_of_clients;
     int up;
+    int tick;
     char message[256];
     char buffer[1024];
 } server;

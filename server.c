@@ -36,6 +36,7 @@ void init_server() {
     if (listen(server.socket, MAX_CLIENTS) == 0) printf("Listening...\n");
     else printf("Error while setting up listen().\n");
 
+    server.tick = 0;
     server.up = 1;
 };
 
@@ -96,6 +97,7 @@ void *client_server_connection_handler(void *arg) {
 
         // Handle client's requests TODO
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
+
         if (bytes_received > 0) {
             enum COMMAND request = (enum COMMAND) buffer[0];
             int parameter = (int) buffer[1];
@@ -104,19 +106,19 @@ void *client_server_connection_handler(void *arg) {
                 case MOVE:
                     switch (parameter) {
                         case UP:
-                            send(socket, "UP", 2, 0);
+                            send(socket, "UP\0", 3, 0);
                             movePlayer(player, UP);
                             break;
                         case DOWN:
-                            send(socket, "DOWN", 4, 0);
+                            send(socket, "DOWN\0", 5, 0);
                             movePlayer(player, DOWN);
                             break;
                         case LEFT:
-                            send(socket, "LEFT", 4, 0);
+                            send(socket, "LEFT\0", 5, 0);
                             movePlayer(player, LEFT);
                             break;
                         case RIGHT:
-                            send(socket, "RIGHT", 5, 0);
+                            send(socket, "RIGHT\0", 6, 0);
                             movePlayer(player, RIGHT);
                             break;
                         default:
@@ -128,6 +130,8 @@ void *client_server_connection_handler(void *arg) {
                     break;
                 case QUIT:
                     send(socket, "QUIT", 4, 0);
+                    disconnect_socket(player->socket);
+                    deletePlayer(player);
                     connected = 0;
                     break;
                 case GET_MAP:
@@ -136,6 +140,7 @@ void *client_server_connection_handler(void *arg) {
                 default:
                     break;
             }
+            buffer[0] = WAIT;
             refresh();
         }
 
