@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #include "player.h"
+#include "config.h"
 
 #include <time.h>
 
@@ -17,6 +18,7 @@ struct client_socket {
     struct sockaddr_in server_address;
     char buffer[1024];
     char map[22]; // information about area around player 3 + 5 + 5 + 5 + 3 + 1
+    char request[2];
     int connected;
     enum PLAYERTYPE playertype;
 } this_client;
@@ -38,7 +40,7 @@ void estabilish_connection() {
         int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address, sizeof(this_client.server_address));
         if (connection_status >= 0) break;
         printf("Waiting for server initialization...\n");
-        usleep(2000000);
+        usleep(TURN_TIME);
     }
 
     this_client.connected = 1;
@@ -91,25 +93,22 @@ int main() { // client application
     // send data to server
     send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
 
-    char request[2];
-
     time_t rawtime;
     struct tm *timeinfo;
 
-    request[0] = MOVE;
-    srand(time(NULL));
-    for (int i = 0; i < 100; i++) {
-        request[1] = rand() % 4;
-        send(this_client.network_socket, request, sizeof(request), 0);
+    this_client.request[0] = MOVE;
+    srand(time(0));
+    for (int i = 0; i < 1000; i++) {
+        this_client.request[1] = rand() % 4;
+        send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
         recv(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
 
         time(&rawtime);
         timeinfo = localtime (&rawtime);
 
-        printf("%s - %s\n", this_client.buffer, asctime(timeinfo));
-        usleep(1000000);
+        printf("---------%s - %s\n", this_client.buffer, asctime(timeinfo));
+        usleep(TURN_TIME);
     }
-    usleep(20000000);
 
     close(this_client.network_socket);
     return 0;

@@ -251,13 +251,14 @@ void *game(void *arg) {
 }
 
 int main() { // server application
-    srand(time(NULL));
+    srand(time(0));
     init_server();
     load_map();
 
     pthread_create(&playingThread, NULL, game, NULL);
 
     while (server.up) {
+        usleep(TURN_TIME);
         pthread_create(&listeningThread, NULL, listen_for_clients, NULL);
         pthread_join(listeningThread, NULL);
     }
