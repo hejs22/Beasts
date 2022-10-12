@@ -7,7 +7,7 @@
 #define BUSHES_AMOUNT 120
 #define MAP_HEIGHT 28
 #define MAP_WIDTH 86
-#define TURN_TIME 300000
+#define TURN_TIME 700000
 #define INFO_POS_Y MAP_HEIGHT + 2
 #define INFO_POS_X 5
 #define MAP_FILENAME "map_small.txt"

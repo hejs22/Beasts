@@ -11,6 +11,7 @@
 #include "world.h"
 #include "server.h"
 #include "player.h"
+#include <time.h>
 
 pthread_t listeningThread, playingThread, keyListenerThread;
 
@@ -54,6 +55,19 @@ void disconnect_socket(int socket) {
             close(socket);
         }
     }
+}
+
+void run_orders(struct Player *player) {
+    if (is_open(player->socket)) {
+        switch (player->command) {
+            case MOVE:
+                movePlayer(player, player->argument);
+                break;
+            default:
+                break;
+        }
+    }
+    player->command = WAIT;
 }
 
 void *client_server_connection_handler(void *arg) {
@@ -107,19 +121,23 @@ void *client_server_connection_handler(void *arg) {
                     switch (parameter) {
                         case UP:
                             send(socket, "UP\0", 3, 0);
-                            movePlayer(player, UP);
+                            player->command = MOVE;
+                            player->argument = UP;
                             break;
                         case DOWN:
                             send(socket, "DOWN\0", 5, 0);
-                            movePlayer(player, DOWN);
+                            player->command = MOVE;
+                            player->argument = DOWN;
                             break;
                         case LEFT:
                             send(socket, "LEFT\0", 5, 0);
-                            movePlayer(player, LEFT);
+                            player->command = MOVE;
+                            player->argument = LEFT;
                             break;
                         case RIGHT:
                             send(socket, "RIGHT\0", 6, 0);
-                            movePlayer(player, RIGHT);
+                            player->command = MOVE;
+                            player->argument = RIGHT;
                             break;
                         default:
                             break;
@@ -192,6 +210,7 @@ void *key_listener(void *arg) {
             case 'q':
                 key = '0';
                 printw("q");
+                server.up = 0;
                 //endGame();
                 break;
             case 'c':
@@ -245,6 +264,14 @@ void *game(void *arg) {
     noecho();
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
+    while (server.up) {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (world.players[i] != NULL) {
+                run_orders(world.players[i]);
+            }
+        }
+        usleep(TURN_TIME);
+    }
     // game logic TODO
 
     pthread_exit(NULL);

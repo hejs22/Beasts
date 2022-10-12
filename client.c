@@ -106,7 +106,7 @@ int main() { // client application
         time(&rawtime);
         timeinfo = localtime (&rawtime);
 
-        printf("---------%s - %s\n", this_client.buffer, asctime(timeinfo));
+        printf("%s - %s\n", this_client.buffer, asctime(timeinfo));
         usleep(TURN_TIME);
     }
 

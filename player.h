@@ -16,6 +16,10 @@ struct Player {
     int coins_saved;
     int bush;
     int socket;
+
+    enum COMMAND command;
+    int argument;
+
     pthread_t pid;
 };
 
