@@ -179,32 +179,32 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
         case UP:
            if (validMove(player->pos_row - 1, player->pos_col)) {
                handle_collision(player, player->pos_row - 1, player->pos_col);
-               if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-               else if (player->bush == 0) print_tile(EMPTY, player->pos_row, player->pos_col);
+               //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+               if (player->bush == 0) print_tile(EMPTY, player->pos_row, player->pos_col);
                print_tile(PLAYER, player->pos_row - 1, player->pos_col);
                player->pos_row -= 1;
             }
             break;
         case DOWN:
             if (validMove(player->pos_row + 1, player->pos_col)) {
-                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                else if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
+                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+                if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_tile(PLAYER, player->pos_row + 1, player->pos_col);
                 player->pos_row += 1;
             }
             break;
         case LEFT:
             if (validMove(player->pos_row, player->pos_col - 1)) {
-                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                else if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
+                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+                if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_tile(PLAYER, player->pos_row, player->pos_col - 1);
                 player->pos_col -= 1;
             }
             break;
         case RIGHT:
             if (validMove(player->pos_row, player->pos_col + 1)) {
-                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                else if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
+                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+                if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_tile(PLAYER, player->pos_row, player->pos_col + 1);
                 player->pos_col += 1;
             }

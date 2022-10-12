@@ -53,9 +53,9 @@ void estabilish_connection() {
 
 void *key_listener(void *arg) {
     noecho();
-    //printw("Entered into key listener");
+    printw("Entered into key listener");
     while (this_client.connected) {
-        unsigned char key = getch();
+        int key = getch();
 
         switch (key) {
             case 'Q':
@@ -63,17 +63,27 @@ void *key_listener(void *arg) {
                 this_client.connected = 0;
                 // tell server to kill player
                 break;
-            case KEY_UP:
+            case 'w':
+                this_client.request[0] = MOVE;
+                this_client.request[1] = UP;
                 // tell server to go up
                 break;
-            case KEY_LEFT:
+            case 'a':
+                this_client.request[0] = MOVE;
+                this_client.request[1] = LEFT;
                 // tell server to go left
                 break;
-            case KEY_DOWN:
+            case 's':
+                this_client.request[0] = MOVE;
+                this_client.request[1] = DOWN;
                 // etc
                 break;
-            case KEY_RIGHT:
+            case 'd':
+                this_client.request[0] = MOVE;
+                this_client.request[1] = RIGHT;
                 // etc
+                break;
+            default:
                 break;
         }
     }
@@ -85,10 +95,14 @@ int main() { // client application
 
     client_configure();
     estabilish_connection();
-    if (this_client.playertype == HUMAN) {
-        // run keyboard listener
-    }
 
+    initscr();
+    noecho();
+
+    printw("TYPE c FOR CPU, h FOR HUMAN: ");
+    int c = getch();
+    if (c == 'c') this_client.playertype = CPU;
+    if (c == 'h') this_client.playertype = HUMAN;
 
     // send data to server
     send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
@@ -96,18 +110,36 @@ int main() { // client application
     time_t rawtime;
     struct tm *timeinfo;
 
-    this_client.request[0] = MOVE;
-    srand(time(0));
-    for (int i = 0; i < 1000; i++) {
-        this_client.request[1] = rand() % 4;
-        send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-        recv(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
 
-        time(&rawtime);
-        timeinfo = localtime (&rawtime);
+    if (this_client.playertype == CPU) {
+        this_client.request[0] = MOVE;
+        srand(time(0));
+        for (int i = 0; i < 1000; i++) {
+            this_client.request[1] = rand() % 4;
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+            recv(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
 
-        printf("%s - %s\n", this_client.buffer, asctime(timeinfo));
-        usleep(TURN_TIME);
+            time(&rawtime);
+            timeinfo = localtime (&rawtime);
+
+            printw("%s - %s\n", this_client.buffer, asctime(timeinfo));
+            usleep(TURN_TIME);
+        }
+    } else if (this_client.playertype == HUMAN) {
+        pthread_t keyboardListener;
+        pthread_create(&keyboardListener, NULL, key_listener, NULL);
+
+        for (int i = 0; i < 1000; i++) {
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+            recv(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
+
+            time(&rawtime);
+            timeinfo = localtime (&rawtime);
+
+            printw("%s - %s\n", this_client.buffer, asctime(timeinfo));
+            this_client.request[0] = WAIT;
+            usleep(TURN_TIME);
+        }
     }
 
     close(this_client.network_socket);
