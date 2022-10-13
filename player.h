@@ -18,6 +18,7 @@ struct Player {
     int socket;
 
     char avatar;
+    int human;
     enum COMMAND command;
     int argument;
 

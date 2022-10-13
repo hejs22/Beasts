@@ -15,6 +15,7 @@ struct World {
 void load_map();
 void print_map();
 void print_info();
+void update_info();
 void print_tile(enum TILE, int, int);
 
 void create_object(enum TILE);

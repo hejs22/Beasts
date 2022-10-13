@@ -59,7 +59,32 @@ void print_map() {  // prints map on console based on world.map[][]
 
 }
 
-    void print_info() {    // prints all additional info on console
+void update_info() {
+    for (int i = 1; i < MAX_CLIENTS; i++) {
+        struct Player *player = world.players[i];
+        if (player != NULL) {
+            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 +  i * 15, "x");
+            if (player->human) mvprintw(INFO_POS_Y + 4, INFO_POS_X +  i * 15, "HUMAN  ");
+            else mvprintw(INFO_POS_Y + 4, INFO_POS_X + 1 +  i * 15, "CPU     ");
+            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 +  i * 15, "%d %d    ", player->pos_row, player->pos_col);
+            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 +  i * 15, "%d     ", player->deaths);
+            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + i * 15, "%d     ", player->coins_saved + player->coins_carried);
+            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + i * 15, "%d     ", player->coins_carried);
+            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + i * 15, "%d     ", player->coins_saved);
+        } else {
+            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 + i * 15, "?        ");
+            mvprintw(INFO_POS_Y + 4, INFO_POS_X + 3 + i * 15, "?        ");
+            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 + i * 15, "?/?      ");
+            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 + i * 15, "?        ");
+            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + i * 15, "?        ");
+            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + i * 15, "?        ");
+            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + i * 15, "?        ");
+        }
+    }
+    refresh();
+}
+
+void print_info() {    // prints all additional info on console
         mvprintw(INFO_POS_Y, INFO_POS_X, "Server's PID: ");
         mvprintw(INFO_POS_Y, INFO_POS_X + 20, "Campsite's X/Y: ");
         mvprintw(INFO_POS_Y, INFO_POS_X + 45, "Round number: ");
@@ -77,6 +102,8 @@ void print_map() {  // prints map on console based on world.map[][]
         mvprintw(INFO_POS_Y + 2, INFO_POS_X + 30, "Player2");
         mvprintw(INFO_POS_Y + 2, INFO_POS_X + 45, "Player3");
         mvprintw(INFO_POS_Y + 2, INFO_POS_X + 60, "Player4");
+
+        update_info();
 
         mvprintw(INFO_POS_Y + 11, INFO_POS_X, "Legend: ");
 }

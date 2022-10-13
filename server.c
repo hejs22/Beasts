@@ -304,6 +304,8 @@ void *game(void *arg) {
                 run_orders(world.players[i]);
             }
         }
+        update_info();
+        refresh();
         usleep(TURN_TIME);
     }
 
