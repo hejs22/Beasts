@@ -113,14 +113,7 @@ void print_tile(enum TILE TYPE, int row, int col) {
         world.map[row][col] = ' ';
         mvprintw(1 + row, 3 + col, " ");
         attroff(COLOR_PAIR(6));
-    }  else if (TYPE == PLAYER) {
-        attron(COLOR_PAIR(5));
-        attron(A_BOLD);
-        world.map[row][col] = '@';
-        mvprintw(1 + row, 3 + col, "@");
-        attroff(A_BOLD);
-        attroff(COLOR_PAIR(5));
-    } else if (TYPE == CAMPFIRE) {
+    }   else if (TYPE == CAMPFIRE) {
         attron(COLOR_PAIR(4));
         attron(A_BOLD);
         world.map[row][col] = 'A';
@@ -130,6 +123,15 @@ void print_tile(enum TILE TYPE, int row, int col) {
     }
     move(0, 0);
     refresh();
+}
+
+void print_player(struct Player *player, int row, int col) {
+        attron(COLOR_PAIR(5));
+        attron(A_BOLD);
+        world.map[row][col] = player->avatar;
+        mvprintw(1 + row, 3 + col, "%c", player->avatar);
+        attroff(A_BOLD);
+        attroff(COLOR_PAIR(5));
 }
 
 void create_object(enum TILE TYPE) {
@@ -151,12 +153,12 @@ void handle_collision(struct Player *P, int row, int col) {
     else if (world.map[row][col] == 'A') {
         P->coins_saved += P->coins_carried;
         P->coins_carried = 0;
-        // prevent despawning of campfire TODO
+        // TODO prevent despawning of campfire
     }
     else if (world.map[row][col] == '*') {
-        // kill player TODO
+        // TODO kill player
     } else if (world.map[row][col] == '@') {
-        // kill both players
+        // TODO kill both players
     }
     else if (world.map[row][col] == '#') {
         P->bush = 2;
@@ -181,7 +183,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
                handle_collision(player, player->pos_row - 1, player->pos_col);
                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                if (player->bush == 0) print_tile(EMPTY, player->pos_row, player->pos_col);
-               print_tile(PLAYER, player->pos_row - 1, player->pos_col);
+               print_player(player, player->pos_row - 1, player->pos_col);
                player->pos_row -= 1;
             }
             break;
@@ -189,7 +191,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
             if (validMove(player->pos_row + 1, player->pos_col)) {
                 //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                 if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
-                print_tile(PLAYER, player->pos_row + 1, player->pos_col);
+                print_player(player, player->pos_row + 1, player->pos_col);
                 player->pos_row += 1;
             }
             break;
@@ -197,7 +199,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
             if (validMove(player->pos_row, player->pos_col - 1)) {
                 //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                 if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
-                print_tile(PLAYER, player->pos_row, player->pos_col - 1);
+                print_player(player, player->pos_row, player->pos_col - 1);
                 player->pos_col -= 1;
             }
             break;
@@ -205,7 +207,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
             if (validMove(player->pos_row, player->pos_col + 1)) {
                 //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                 if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
-                print_tile(PLAYER, player->pos_row, player->pos_col + 1);
+                print_player(player, player->pos_row, player->pos_col + 1);
                 player->pos_col += 1;
             }
             break;
@@ -222,12 +224,13 @@ struct Player *create_player(int socket) {
     if (new == NULL) return NULL;
 
     int flag = 1, rand_col, rand_row;
+    new->avatar = 0;
 
     while (flag) {
         rand_col = rand() % MAP_WIDTH;
         rand_row = rand() % MAP_HEIGHT;
         if (world.map[rand_row][rand_col] == ' ') {
-            print_tile(PLAYER, rand_row, rand_col);
+            print_player(new, rand_row, rand_col);
             flag = 0;
         }
     }
@@ -251,4 +254,5 @@ struct Player *create_player(int socket) {
 void deletePlayer(struct Player *p) {
     world.active_players--;
     free(p);
+    p = NULL;
 }

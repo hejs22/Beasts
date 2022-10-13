@@ -70,6 +70,32 @@ void run_orders(struct Player *player) {
     player->command = WAIT;
 }
 
+int is_position_valid(int row, int col) {
+    if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return 0;
+    return 1;
+}
+
+void send_map(struct Player *player) {
+    char map[7][7];
+
+    for (int row = 0; row < 7; row++) {
+        for (int col = 0; col < 7; col++) {
+            if (is_position_valid(row - 3 + player->pos_row, col - 3 + player->pos_col)) {
+                map[row][col] = world.map[row - 3 + player->pos_row][col - 3 + player->pos_col];
+            }
+            else {
+                map[row][col] = 'X';
+            }
+        }
+    }
+
+    send(player->socket, map, sizeof(map), 0);
+}
+
+void send_data(struct Player *player) {
+    // TODO send information about coins, position, deaths etc.
+}
+
 void *client_server_connection_handler(void *arg) {
     char client_buffer[1024];
     struct Player *player;
@@ -82,8 +108,10 @@ void *client_server_connection_handler(void *arg) {
         // check for empty slots, if any is found create player
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
-                world.players[world.active_players] = create_player(socket);
-                player = world.players[world.active_players];
+                create_player(socket);
+                player = create_player(socket);
+                player->avatar = i + '0';
+                world.players[i] = player;
                 world.active_players++;
                 flag = 1;
                 break;
@@ -100,16 +128,18 @@ void *client_server_connection_handler(void *arg) {
         // if client isn't connected, disconnect his socket and free his Player structure
         if (!is_open(socket)) {
             for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (world.players[i]->socket == socket) {
-                    disconnect_socket(socket);
-                    deletePlayer(world.players[i]);
-                    break;
+                if (world.players[i] != NULL) {
+                    if (world.players[i]->socket == socket) {
+                        disconnect_socket(socket);
+                        deletePlayer(world.players[i]);
+                        break;
+                    }
                 }
             }
             connected = 0;
         }
 
-        // Handle client's requests TODO
+        // TODO handle client's requests
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
 
         if (bytes_received > 0) {
@@ -120,22 +150,22 @@ void *client_server_connection_handler(void *arg) {
                 case MOVE:
                     switch (parameter) {
                         case UP:
-                            send(socket, "UP\0", 3, 0);
+                            //send(socket, "UP\0", 3, 0);
                             player->command = MOVE;
                             player->argument = UP;
                             break;
                         case DOWN:
-                            send(socket, "DOWN\0", 5, 0);
+                            //send(socket, "DOWN\0", 5, 0);
                             player->command = MOVE;
                             player->argument = DOWN;
                             break;
                         case LEFT:
-                            send(socket, "LEFT\0", 5, 0);
+                            //send(socket, "LEFT\0", 5, 0);
                             player->command = MOVE;
                             player->argument = LEFT;
                             break;
                         case RIGHT:
-                            send(socket, "RIGHT\0", 6, 0);
+                            //send(socket, "RIGHT\0", 6, 0);
                             player->command = MOVE;
                             player->argument = RIGHT;
                             break;
@@ -144,20 +174,22 @@ void *client_server_connection_handler(void *arg) {
                     }
                     break;
                 case WAIT:
-                    send(socket, "WAIT", 4, 0);
+                    //send(socket, "WAIT", 4, 0);
                     break;
                 case QUIT:
-                    send(socket, "QUIT", 4, 0);
+                    //send(socket, "QUIT", 4, 0);
                     disconnect_socket(player->socket);
                     deletePlayer(player);
                     connected = 0;
                     break;
                 case GET_MAP:
-                    send(socket, "GET_MAP", 7, 0);
+                    //send(socket, "GET_MAP", 7, 0);
                     break;
                 default:
                     break;
             }
+            send_map(player);
+            send_data(player);
             buffer[0] = WAIT;
             refresh();
         }
@@ -228,7 +260,7 @@ void *key_listener(void *arg) {
             case 'B':
             case 'b':
                 key = '0';
-                // add beasts TODO
+                // TODO add beasts
 
                 break;
             default:
@@ -248,7 +280,7 @@ void init_ui() {
         init_pair(2, COLOR_GREEN, COLOR_BLACK); // Green for bushes
         init_pair(3, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
         init_pair(4, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
-        init_pair(5, COLOR_CYAN, COLOR_BLACK); // Blue for players
+        init_pair(5, COLOR_CYAN, COLOR_BLUE); // Blue for players
         init_pair(6, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
     }
 
@@ -264,6 +296,8 @@ void *game(void *arg) {
     noecho();
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
+    // TODO game logic
+
     while (server.up) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
@@ -272,7 +306,6 @@ void *game(void *arg) {
         }
         usleep(TURN_TIME);
     }
-    // game logic TODO
 
     pthread_exit(NULL);
 }
