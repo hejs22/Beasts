@@ -16,7 +16,7 @@
 void load_map() {  // loads map from txt file into global variable
     FILE *mapfile = fopen(MAP_FILENAME, "r");
     if (mapfile == NULL) {
-        printf("Couldn't load a map. Aborting...\n");
+        //printf("Couldn't load a map. Aborting...\n");
         return;
     }
 
@@ -60,25 +60,25 @@ void print_map() {  // prints map on console based on world.map[][]
 }
 
 void update_info() {
-    for (int i = 1; i < MAX_CLIENTS; i++) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
         struct Player *player = world.players[i];
         if (player != NULL) {
-            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 +  i * 15, "x");
-            if (player->human) mvprintw(INFO_POS_Y + 4, INFO_POS_X +  i * 15, "HUMAN  ");
-            else mvprintw(INFO_POS_Y + 4, INFO_POS_X + 1 +  i * 15, "CPU     ");
-            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 +  i * 15, "%d %d    ", player->pos_row, player->pos_col);
-            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 +  i * 15, "%d     ", player->deaths);
-            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + i * 15, "%d     ", player->coins_saved + player->coins_carried);
-            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + i * 15, "%d     ", player->coins_carried);
-            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + i * 15, "%d     ", player->coins_saved);
+            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 + (i + 1) * 15, "x");
+            if (player->human) mvprintw(INFO_POS_Y + 4, INFO_POS_X + (i + 1) * 15, "HUMAN  ");
+            else mvprintw(INFO_POS_Y + 4, INFO_POS_X + 1 + (i + 1) * 15, "CPU     ");
+            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 + (i + 1) * 15, "%d %d    ", player->pos_row, player->pos_col);
+            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->deaths);
+            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->coins_saved + player->coins_carried);
+            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->coins_carried);
+            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->coins_saved);
         } else {
-            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 + i * 15, "?        ");
-            mvprintw(INFO_POS_Y + 4, INFO_POS_X + 3 + i * 15, "?        ");
-            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 + i * 15, "?/?      ");
-            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 + i * 15, "?        ");
-            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + i * 15, "?        ");
-            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + i * 15, "?        ");
-            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + i * 15, "?        ");
+            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 4, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 + (i + 1) * 15, "?/?      ");
+            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
         }
     }
     refresh();

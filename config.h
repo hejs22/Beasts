@@ -1,7 +1,7 @@
 #ifndef CLIENT_CONFIG_H
 #define CLIENT_CONFIG_H
 
-#define MAX_CLIENTS 5
+#define MAX_CLIENTS 4
 #define MAX_BEASTS 10
 #define TREASURES_AMOUNT 50
 #define BUSHES_AMOUNT 120

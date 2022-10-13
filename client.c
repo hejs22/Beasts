@@ -61,6 +61,7 @@ void *key_listener(void *arg) {
             case 'Q':
             case 'q':
                 this_client.connected = 0;
+                close(this_client.network_socket);
                 // tell server to kill player
                 break;
             case 'w':

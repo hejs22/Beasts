@@ -107,10 +107,9 @@ void *client_server_connection_handler(void *arg) {
     if (is_open(socket)) {
         // check for empty slots, if any is found create player
         for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (server.clients[i] == -1) {
-                create_player(socket);
+            if (server.clients[i] == socket) {
                 player = create_player(socket);
-                player->avatar = i + '0';
+                player->avatar = i + '1';
                 world.players[i] = player;
                 world.active_players++;
                 flag = 1;
@@ -201,11 +200,10 @@ void *client_server_connection_handler(void *arg) {
 void *listen_for_clients(void *arg) {
     int client_socket;
     struct sockaddr_in client;
-    //socklen_t client_size = sizeof(client);
 
     client_socket = accept(server.socket, NULL, NULL);
-    send(client_socket, server.message, sizeof(server.message), 0);
 
+    send(client_socket, server.message, sizeof(server.message), 0);
     recv(client_socket, server.buffer, sizeof(server.buffer), 0);
     //printf("Player %s joined the server.\n", server.buffer);
 
@@ -301,6 +299,7 @@ void *game(void *arg) {
     while (server.up) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
+                mvprintw(0, i * 10, "%d - %d    ", server.clients[i], world.players[i]->socket);
                 run_orders(world.players[i]);
             }
         }
