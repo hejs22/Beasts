@@ -10,7 +10,6 @@ struct Player {
     int pos_col;
     int spawn_row;
     int spawn_col;
-    enum DIRECTION dir;
     int deaths;
     int coins_carried;
     int coins_saved;

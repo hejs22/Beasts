@@ -37,7 +37,6 @@ void init_server() {
     if (listen(server.socket, MAX_CLIENTS) == 0) printf("Listening...\n");
     else printf("Error while setting up listen().\n");
 
-    server.tick = 0;
     server.up = 1;
 };
 
@@ -50,7 +49,6 @@ int is_open(int socket) {
 void disconnect_socket(int socket) {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (server.clients[i] == socket) {
-           // printf("Client at socket %d disconnected. \n", socket);
             server.clients[i] = -1;
             close(socket);
         }
@@ -63,6 +61,9 @@ void run_orders(struct Player *player) {
             case MOVE:
                 movePlayer(player, player->argument);
                 break;
+            case QUIT:
+                disconnect_socket(player->socket);
+                deletePlayer(player);
             default:
                 break;
         }
@@ -76,10 +77,10 @@ int is_position_valid(int row, int col) {
 }
 
 void send_map(struct Player *player) {
-    char map[7][7];
+    char map[PLAYER_POV][PLAYER_POV];
 
-    for (int row = 0; row < 7; row++) {
-        for (int col = 0; col < 7; col++) {
+    for (int row = 0; row < PLAYER_POV; row++) {
+        for (int col = 0; col < PLAYER_POV; col++) {
             if (is_position_valid(row - 3 + player->pos_row, col - 3 + player->pos_col)) {
                 map[row][col] = world.map[row - 3 + player->pos_row][col - 3 + player->pos_col];
             }
@@ -97,7 +98,6 @@ void send_data(struct Player *player) {
 }
 
 void *client_server_connection_handler(void *arg) {
-    char client_buffer[1024];
     struct Player *player;
     int socket = *(int *) arg;
     int connected = 1;
@@ -138,9 +138,7 @@ void *client_server_connection_handler(void *arg) {
             connected = 0;
         }
 
-        // TODO handle client's requests
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-
         if (bytes_received > 0) {
             enum COMMAND request = (enum COMMAND) buffer[0];
             int parameter = (int) buffer[1];
@@ -149,22 +147,18 @@ void *client_server_connection_handler(void *arg) {
                 case MOVE:
                     switch (parameter) {
                         case UP:
-                            //send(socket, "UP\0", 3, 0);
                             player->command = MOVE;
                             player->argument = UP;
                             break;
                         case DOWN:
-                            //send(socket, "DOWN\0", 5, 0);
                             player->command = MOVE;
                             player->argument = DOWN;
                             break;
                         case LEFT:
-                            //send(socket, "LEFT\0", 5, 0);
                             player->command = MOVE;
                             player->argument = LEFT;
                             break;
                         case RIGHT:
-                            //send(socket, "RIGHT\0", 6, 0);
                             player->command = MOVE;
                             player->argument = RIGHT;
                             break;
@@ -173,16 +167,11 @@ void *client_server_connection_handler(void *arg) {
                     }
                     break;
                 case WAIT:
-                    //send(socket, "WAIT", 4, 0);
                     break;
                 case QUIT:
-                    //send(socket, "QUIT", 4, 0);
                     disconnect_socket(player->socket);
                     deletePlayer(player);
                     connected = 0;
-                    break;
-                case GET_MAP:
-                    //send(socket, "GET_MAP", 7, 0);
                     break;
                 default:
                     break;
@@ -198,14 +187,10 @@ void *client_server_connection_handler(void *arg) {
 }
 
 void *listen_for_clients(void *arg) {
-    int client_socket;
-    struct sockaddr_in client;
-
-    client_socket = accept(server.socket, NULL, NULL);
+    int client_socket = accept(server.socket, NULL, NULL);
 
     send(client_socket, server.message, sizeof(server.message), 0);
     recv(client_socket, server.buffer, sizeof(server.buffer), 0);
-    //printf("Player %s joined the server.\n", server.buffer);
 
     // check for empty client slots
     int flag = 1, i;
@@ -225,16 +210,14 @@ void *listen_for_clients(void *arg) {
     // create a handler thread for each connection and remember client's socket
     pthread_t handler;
     pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
-    //pthread_join(handler, NULL);
     pthread_exit(NULL);
 }
 
 void *key_listener(void *arg) {
     noecho();
-    //printw("Entered into key listener");
+
     while (server.up) {
         unsigned char key = getch();
-
         switch (key) {
             case 'Q':
             case 'q':

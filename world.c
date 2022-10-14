@@ -155,8 +155,10 @@ void print_tile(enum TILE TYPE, int row, int col) {
 void print_player(struct Player *player, int row, int col) {
         attron(COLOR_PAIR(5));
         attron(A_BOLD);
-        world.map[row][col] = player->avatar;
-        mvprintw(1 + row, 3 + col, "%c", player->avatar);
+        if (world.map[row][col] != '#') {
+            mvprintw(1 + row, 3 + col, "%c", player->avatar);
+            world.map[row][col] = player->avatar;
+        }
         attroff(A_BOLD);
         attroff(COLOR_PAIR(5));
 }
@@ -173,22 +175,24 @@ void create_object(enum TILE TYPE) {
     }
 }
 
-void handle_collision(struct Player *P, int row, int col) {
-    if (world.map[row][col] == 'c') P->coins_carried += 1;
-    else if (world.map[row][col] == 't') P->coins_carried += 10;
-    else if (world.map[row][col] == 'T') P->coins_carried += 50;
+void handle_collision(struct Player *player, int row, int col) {
+
+    if (world.map[row][col] == 'c') player->coins_carried += 1;
+    else if (world.map[row][col] == 't') player->coins_carried += 10;
+    else if (world.map[row][col] == 'T') player->coins_carried += 50;
     else if (world.map[row][col] == 'A') {
-        P->coins_saved += P->coins_carried;
-        P->coins_carried = 0;
+        player->coins_saved += player->coins_carried;
+        player->coins_carried = 0;
         // TODO prevent despawning of campfire
     }
     else if (world.map[row][col] == '*') {
         // TODO kill player
-    } else if (world.map[row][col] == '@') {
+    }
+    else if (world.map[row][col] == '@') {
         // TODO kill both players
     }
     else if (world.map[row][col] == '#') {
-        P->bush = 2;
+        player->bush = 1;
     }
 }
 
@@ -200,41 +204,42 @@ int validMove(int row, int col) {
 
 void movePlayer(struct Player *player, enum DIRECTION dir) {
     if (player == NULL) return;
-    if (player->bush == 2) {
-        player->bush = 1;
-        return;
-    }
+
     switch (dir) {
         case UP:
            if (validMove(player->pos_row - 1, player->pos_col)) {
                handle_collision(player, player->pos_row - 1, player->pos_col);
-               //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-               if (player->bush == 0) print_tile(EMPTY, player->pos_row, player->pos_col);
                print_player(player, player->pos_row - 1, player->pos_col);
+               if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+               if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
+               player->bush = 0;
                player->pos_row -= 1;
             }
             break;
         case DOWN:
             if (validMove(player->pos_row + 1, player->pos_col)) {
-                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_player(player, player->pos_row + 1, player->pos_col);
+                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+                if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
+                player->bush = 0;
                 player->pos_row += 1;
             }
             break;
         case LEFT:
             if (validMove(player->pos_row, player->pos_col - 1)) {
-                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_player(player, player->pos_row, player->pos_col - 1);
+                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+                if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
+                player->bush = 0;
                 player->pos_col -= 1;
             }
             break;
         case RIGHT:
             if (validMove(player->pos_row, player->pos_col + 1)) {
-                //if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
-                if (player->bush == 0)  print_tile(EMPTY, player->pos_row, player->pos_col);
                 print_player(player, player->pos_row, player->pos_col + 1);
+                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
+                if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
+                player->bush = 0;
                 player->pos_col += 1;
             }
             break;
@@ -243,6 +248,7 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
         default:
             break;
     }
+
     player->bush = 0;
 }
 
@@ -270,10 +276,7 @@ struct Player *create_player(int socket) {
     new->coins_carried = 0;
     new->coins_saved = 0;
     new->deaths = 0;
-    new->dir = STOP;
     new->socket = socket;
-    //printf("Player created\n");
-    refresh();
 
     return new;
 }

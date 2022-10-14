@@ -17,7 +17,7 @@ struct client_socket {
     int network_socket;
     struct sockaddr_in server_address;
     char buffer[1024];
-    char map[7][7];
+    char map[PLAYER_POV][PLAYER_POV];
     char request[2];
     int connected;
     enum PLAYERTYPE playertype;
@@ -147,8 +147,8 @@ void print_tile_client(char c, int row, int col) {
 
 void print_map_client() {
     clear();
-    for (int row = 0; row < 7; row++) {
-        for (int col = 0; col < 7; col++) {
+    for (int row = 0; row < PLAYER_POV; row++) {
+        for (int col = 0; col < PLAYER_POV; col++) {
             print_tile_client(this_client.map[row][col], row + 1, col + 3);
         }
     }
