@@ -163,9 +163,15 @@ void print_legend() {
     mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Campsite's X/Y: ");
     mvprintw(4, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Round number: ");
 
+    mvprintw(6, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Player's X/Y: ");
+    mvprintw(7, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Coins carried: ");
+    mvprintw(8, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Coins saved: ");
+    mvprintw(9, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Deaths: ");
+
+
     mvprintw(CLIENT_INFO_POS_Y + 1, CLIENT_INFO_POS_X, "Legend: ");
 
-    mvprintw(CLIENT_INFO_POS_Y + 1, CLIENT_INFO_POS_X, "Players - ");
+    mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X, "Players - ");
     attron(COLOR_PAIR(5));
     attron(A_BOLD);
     mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X + 10, "1");
@@ -212,7 +218,14 @@ void print_map_client() {
 }
 
 void print_info_client() {
-    //mvprintw(2, 16 + PLAYER_POV, "%d/%d    ", this_client.pos_row, this_client.pos_col);
+    mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Campsite's X/Y: ");
+    mvprintw(4, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Round number: ");
+
+    mvprintw(6, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d/%d    ", this_client.pos_row, this_client.pos_col);
+    mvprintw(7, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.coins_carried);
+    mvprintw(8, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.coins_saved);
+    mvprintw(9, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.deaths);
+
 }
 
 void get_map() {
