@@ -18,9 +18,18 @@ struct client_socket {
     struct sockaddr_in server_address;
     char buffer[1024];
     char map[PLAYER_POV][PLAYER_POV];
+    char data[5];
     char request[2];
     int connected;
+    pthread_t server_pid;
     enum PLAYERTYPE playertype;
+
+    int pos_row;
+    int pos_col;
+    int coins_saved;
+    int coins_carried;
+    int deaths;
+    int round;
 } this_client;
 
 void client_configure() {
@@ -34,19 +43,22 @@ void client_configure() {
 }
 
 void estabilish_connection() {
-    while (1) {
-        // spinlock TODO
+    int i = 0;
+    while (i < 10) {
         int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address, sizeof(this_client.server_address));
         if (connection_status >= 0) break;
         printf("Waiting for server initialization...\n");
         usleep(TURN_TIME);
+        i++;
     }
 
     this_client.connected = 1;
     char server_response[256];
     recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
 
-    printw("%s\n", server_response);
+    clear();
+    mvprintw(0, 0, "Connection estabilished. ");
+    this_client.server_pid = atoi(server_response);
 }
 
 
@@ -145,21 +157,99 @@ void print_tile_client(char c, int row, int col) {
     }
 }
 
+
+void print_legend() {
+    mvprintw(2, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Server's PID: %d    ", this_client.server_pid);
+    mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Campsite's X/Y: ");
+    mvprintw(4, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Round number: ");
+
+    mvprintw(CLIENT_INFO_POS_Y + 1, CLIENT_INFO_POS_X, "Legend: ");
+
+    mvprintw(CLIENT_INFO_POS_Y + 1, CLIENT_INFO_POS_X, "Players - ");
+    attron(COLOR_PAIR(5));
+    attron(A_BOLD);
+    mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X + 10, "1");
+    mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X + 12, "2");
+    mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X + 14, "3");
+    mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X + 16, "4");
+    attroff(COLOR_PAIR(5));
+    attroff(A_BOLD);
+
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X, "1 coin - ");
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 13, "10 coins - ");
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 28, "50 coins - ");
+
+    attron(COLOR_PAIR(3));
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 9, "c");
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 24, "t");
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 39, "T");
+    attroff(COLOR_PAIR(3));
+
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X, "Bush - ");
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 13, "Campfire - ");
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 28, "Beast - ");
+
+    attron(COLOR_PAIR(2));
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 7, "#");
+    attroff(COLOR_PAIR(2));
+    attron(COLOR_PAIR(4));
+    attron(A_BOLD);
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 24, "A");
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 36, "*");
+    attroff(A_BOLD);
+    attroff(COLOR_PAIR(4));
+
+    refresh();
+}
+
 void print_map_client() {
-    clear();
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
             print_tile_client(this_client.map[row][col], row + 1, col + 3);
         }
     }
     move(0, 0);
-    refresh();
 }
 
-int main() { // client application
+void print_info_client() {
+    //mvprintw(2, 16 + PLAYER_POV, "%d/%d    ", this_client.pos_row, this_client.pos_col);
+}
 
+void get_map() {
+    recv(this_client.network_socket, this_client.map, sizeof(this_client.map), 0);
+    print_map_client();
+}
+
+struct data_transfer {
+    int pos_X;
+    int pos_Y;
+    int coins_saved;
+    int coins_carried;
+    int deaths;
+    int round;
+};
+
+void get_info() {
+    struct data_transfer data;
+    recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
+    this_client.pos_row = data.pos_X;
+    this_client.pos_col = data.pos_Y;
+    this_client.deaths = data.deaths;
+    this_client.coins_carried = data.coins_carried;
+    this_client.coins_saved = data.coins_saved;
+    this_client.round = data.round;
+
+    print_info_client();
+}
+
+void init_ui_client() {
     initscr();
     noecho();
+
+    printw("TYPE c FOR CPU, h FOR HUMAN: ");
+    int c = getch();
+    if (c == 'c') this_client.playertype = CPU;
+    if (c == 'h') this_client.playertype = HUMAN;
 
     if (has_colors() == TRUE) {
         start_color();
@@ -171,28 +261,22 @@ int main() { // client application
         init_pair(6, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
     }
 
-    printw("TYPE c FOR CPU, h FOR HUMAN: ");
-    int c = getch();
-    if (c == 'c') this_client.playertype = CPU;
-    if (c == 'h') this_client.playertype = HUMAN;
+    clear();
+    print_legend();
+}
 
-    client_configure();
-    estabilish_connection();
-
-
-
-    // send data to server
-    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
-
-
+void game_client() {
+    print_legend();
     if (this_client.playertype == CPU) {
         this_client.request[0] = MOVE;
         srand(time(0));
         for (int i = 0; i < 1000; i++) {
             this_client.request[1] = rand() % 4;
             send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-            recv(this_client.network_socket, this_client.map, sizeof(this_client.map), 0);
-            print_map_client();
+            get_map();
+            get_info();
+            refresh();
+
             usleep(TURN_TIME);
         }
     } else if (this_client.playertype == HUMAN) {
@@ -201,12 +285,28 @@ int main() { // client application
 
         for (int i = 0; i < 1000; i++) {
             send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-            recv(this_client.network_socket, this_client.map, sizeof(this_client.map), 0);
-            print_map_client();
+            get_map();
+            get_info();
+            refresh();
+
             this_client.request[0] = WAIT;
             usleep(TURN_TIME);
         }
     }
+}
+
+int main() { // client application
+
+    client_configure();
+    estabilish_connection();
+
+    // send data to server
+    int pid = getpid();
+    sprintf(this_client.buffer, "%d", pid);
+    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
+
+    init_ui_client();
+    game_client();
 
     close(this_client.network_socket);
     return 0;

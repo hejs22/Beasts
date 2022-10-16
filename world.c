@@ -25,7 +25,7 @@ void load_map() {  // loads map from txt file into global variable
 
     while (!feof(mapfile)) {
         fscanf(mapfile, "%c", &c);
-        if (c == 'X' || c == '#' || c == ' ' || c == 'O') {
+        if (c == 'X' || c == '#' || c == ' ' || c == 'A') {
             world.map[row][col] = c;
             col++;
         } else if (c == '\n') {
@@ -48,8 +48,10 @@ void print_map() {  // prints map on console based on world.map[][]
                 print_tile(BUSH, row, col);
             } else if (world.map[row][col] == ' ') {
                 print_tile(EMPTY, row, col);
-            } else if (world.map[row][col] == 'O') {
+            } else if (world.map[row][col] == 'A') {
                 print_tile(CAMPFIRE, row, col);
+                world.campfire_row = row;
+                world.campfire_col = col;
             }
         }
     }
@@ -60,52 +62,89 @@ void print_map() {  // prints map on console based on world.map[][]
 }
 
 void update_info() {
+
+    mvprintw(INFO_POS_Y, INFO_POS_X + 80, "%d    ", server.round);
+
     for (int i = 0; i < MAX_CLIENTS; i++) {
         struct Player *player = world.players[i];
         if (player != NULL) {
-            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 + (i + 1) * 15, "x");
+            mvprintw(INFO_POS_Y + 3, INFO_POS_X + (i + 1) * 15, "%d      ", player->pid);
             if (player->human) mvprintw(INFO_POS_Y + 4, INFO_POS_X + (i + 1) * 15, "HUMAN  ");
-            else mvprintw(INFO_POS_Y + 4, INFO_POS_X + 1 + (i + 1) * 15, "CPU     ");
-            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 + (i + 1) * 15, "%d %d    ", player->pos_row, player->pos_col);
-            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->deaths);
-            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->coins_saved + player->coins_carried);
-            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->coins_carried);
-            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + (i + 1) * 15, "%d     ", player->coins_saved);
+            else mvprintw(INFO_POS_Y + 4, INFO_POS_X + (i + 1) * 15, "CPU     ");
+            mvprintw(INFO_POS_Y + 5, INFO_POS_X + (i + 1) * 15, "%d %d    ", player->pos_row, player->pos_col);
+            mvprintw(INFO_POS_Y + 6, INFO_POS_X + (i + 1) * 15, "%d     ", player->deaths);
+            mvprintw(INFO_POS_Y + 7, INFO_POS_X + (i + 1) * 15, "%d     ", player->coins_saved + player->coins_carried);
+            mvprintw(INFO_POS_Y + 8, INFO_POS_X + (i + 1) * 15, "%d     ", player->coins_carried);
+            mvprintw(INFO_POS_Y + 9, INFO_POS_X + (i + 1) * 15, "%d     ", player->coins_saved);
         } else {
-            mvprintw(INFO_POS_Y + 3, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
-            mvprintw(INFO_POS_Y + 4, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
-            mvprintw(INFO_POS_Y + 5, INFO_POS_X + 2 + (i + 1) * 15, "?/?      ");
-            mvprintw(INFO_POS_Y + 6, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
-            mvprintw(INFO_POS_Y + 7, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
-            mvprintw(INFO_POS_Y + 8, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
-            mvprintw(INFO_POS_Y + 9, INFO_POS_X + 3 + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 3, INFO_POS_X + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 4, INFO_POS_X + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 5, INFO_POS_X + (i + 1) * 15, "?/?      ");
+            mvprintw(INFO_POS_Y + 6, INFO_POS_X + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 7, INFO_POS_X + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 8, INFO_POS_X + (i + 1) * 15, "?        ");
+            mvprintw(INFO_POS_Y + 9, INFO_POS_X + (i + 1) * 15, "?        ");
         }
     }
     refresh();
 }
 
 void print_info() {    // prints all additional info on console
-        mvprintw(INFO_POS_Y, INFO_POS_X, "Server's PID: ");
-        mvprintw(INFO_POS_Y, INFO_POS_X + 20, "Campsite's X/Y: ");
-        mvprintw(INFO_POS_Y, INFO_POS_X + 45, "Round number: ");
+    mvprintw(INFO_POS_Y, INFO_POS_X, "Server's PID: %d", server.pid);
+    mvprintw(INFO_POS_Y, INFO_POS_X + 30, "Campsite's X/Y: %d/%d    ", world.campfire_row, world.campfire_col);
+    mvprintw(INFO_POS_Y, INFO_POS_X + 65, "Round number: ");
 
-        mvprintw(INFO_POS_Y + 2, INFO_POS_X, "Parameter: ");
-        mvprintw(INFO_POS_Y + 3, INFO_POS_X, "PID: ");
-        mvprintw(INFO_POS_Y + 4, INFO_POS_X, "Type: ");
-        mvprintw(INFO_POS_Y + 5, INFO_POS_X, "X/Y: ");
-        mvprintw(INFO_POS_Y + 6, INFO_POS_X, "Deaths: ");
-        mvprintw(INFO_POS_Y + 7, INFO_POS_X, "Coins: ");
-        mvprintw(INFO_POS_Y + 8, INFO_POS_X + 1, "-carried: ");
-        mvprintw(INFO_POS_Y + 9, INFO_POS_X + 1, "-brought: ");
+    mvprintw(INFO_POS_Y + 2, INFO_POS_X, "Parameter: ");
+    mvprintw(INFO_POS_Y + 3, INFO_POS_X, "PID: ");
+    mvprintw(INFO_POS_Y + 4, INFO_POS_X, "Type: ");
+    mvprintw(INFO_POS_Y + 5, INFO_POS_X, "X/Y: ");
+    mvprintw(INFO_POS_Y + 6, INFO_POS_X, "Deaths: ");
+    mvprintw(INFO_POS_Y + 7, INFO_POS_X, "Coins: ");
+    mvprintw(INFO_POS_Y + 8, INFO_POS_X + 1, "-carried: ");
+    mvprintw(INFO_POS_Y + 9, INFO_POS_X + 1, "-saved: ");
 
-        mvprintw(INFO_POS_Y + 2, INFO_POS_X + 15, "Player1");
-        mvprintw(INFO_POS_Y + 2, INFO_POS_X + 30, "Player2");
-        mvprintw(INFO_POS_Y + 2, INFO_POS_X + 45, "Player3");
-        mvprintw(INFO_POS_Y + 2, INFO_POS_X + 60, "Player4");
+    mvprintw(INFO_POS_Y + 2, INFO_POS_X + 15, "Player1");
+    mvprintw(INFO_POS_Y + 2, INFO_POS_X + 30, "Player2");
+    mvprintw(INFO_POS_Y + 2, INFO_POS_X + 45, "Player3");
+    mvprintw(INFO_POS_Y + 2, INFO_POS_X + 60, "Player4");
 
-        update_info();
+    mvprintw(INFO_POS_Y + 11, INFO_POS_X, "Legend: ");
 
-        mvprintw(INFO_POS_Y + 11, INFO_POS_X, "Legend: ");
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X, "Players - ");
+    attron(COLOR_PAIR(5));
+    attron(A_BOLD);
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 10, "1");
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 12, "2");
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 14, "3");
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 16, "4");
+    attroff(COLOR_PAIR(5));
+    attroff(A_BOLD);
+
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X, "1 coin - ");
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 13, "10 coins - ");
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 28, "50 coins - ");
+
+    attron(COLOR_PAIR(3));
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 9, "c");
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 24, "t");
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 39, "T");
+    attroff(COLOR_PAIR(3));
+
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X, "Bush - ");
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 13, "Campfire - ");
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 28, "Beast - ");
+
+    attron(COLOR_PAIR(2));
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 7, "#");
+    attroff(COLOR_PAIR(2));
+    attron(COLOR_PAIR(4));
+    attron(A_BOLD);
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 24, "A");
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 36, "*");
+    attroff(A_BOLD);
+    attroff(COLOR_PAIR(4));
+
+    update_info();
 }
 
 void print_tile(enum TILE TYPE, int row, int col) {
@@ -180,16 +219,20 @@ void handle_collision(struct Player *player, int row, int col) {
     if (world.map[row][col] == 'c') player->coins_carried += 1;
     else if (world.map[row][col] == 't') player->coins_carried += 10;
     else if (world.map[row][col] == 'T') player->coins_carried += 50;
-    else if (world.map[row][col] == 'A') {
+    else if ((world.map[row + 1][col] == 'A') || (world.map[row - 1][col] == 'A') || (world.map[row][col + 1] == 'A') || (world.map[row][col - 1] == 'A')) {
         player->coins_saved += player->coins_carried;
         player->coins_carried = 0;
-        // TODO prevent despawning of campfire
     }
     else if (world.map[row][col] == '*') {
-        // TODO kill player
+        killPlayer(player);
     }
-    else if (world.map[row][col] == '@') {
-        // TODO kill both players
+    else if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') || (world.map[row][col] == '4')) {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if ((world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
+                killPlayer(world.players[i]);
+            }
+        }
+       // killPlayer(player);
     }
     else if (world.map[row][col] == '#') {
         player->bush = 1;
@@ -198,7 +241,7 @@ void handle_collision(struct Player *player, int row, int col) {
 
 int validMove(int row, int col) {
     if ((row < 0) || (col < 0) || (col >= MAP_WIDTH) || (row >= MAP_HEIGHT)) return 0;
-    if (world.map[row][col] == 'X') return 0;
+    if ((world.map[row][col] == 'X') || (world.map[row][col] == 'A')) return 0;
     return 1;
 }
 
@@ -212,7 +255,6 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
                print_player(player, player->pos_row - 1, player->pos_col);
                if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
-               player->bush = 0;
                player->pos_row -= 1;
             }
             break;
@@ -221,7 +263,6 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
                 print_player(player, player->pos_row + 1, player->pos_col);
                 if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                 if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
-                player->bush = 0;
                 player->pos_row += 1;
             }
             break;
@@ -230,7 +271,6 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
                 print_player(player, player->pos_row, player->pos_col - 1);
                 if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                 if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
-                player->bush = 0;
                 player->pos_col -= 1;
             }
             break;
@@ -239,7 +279,6 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
                 print_player(player, player->pos_row, player->pos_col + 1);
                 if (player->bush == 1) print_tile(BUSH, player->pos_row, player->pos_col);
                 if ((player->bush == 0) && (world.map[player->pos_row][player->pos_col] != '#')) print_tile(EMPTY, player->pos_row, player->pos_col);
-                player->bush = 0;
                 player->pos_col += 1;
             }
             break;
@@ -278,11 +317,35 @@ struct Player *create_player(int socket) {
     new->deaths = 0;
     new->socket = socket;
 
+    // TODO add process id
+
     return new;
 }
 
-void deletePlayer(struct Player *p) {
+void dropTreasure(struct Player *player) {
+    // TODO force player to drop coins
+};
+
+void killPlayer(struct Player *player) {
+    if (player->bush) {
+        world.map[player->pos_row][player->pos_col] = '#';
+        print_tile(BUSH, player->pos_row, player->pos_col);
+    } else {
+        world.map[player->pos_row][player->pos_col] = ' ';
+        print_tile(EMPTY, player->pos_row, player->pos_col);
+    }
+
+    dropTreasure(player);
+
+    player->pos_col = player->spawn_col;
+    player->pos_row = player->spawn_row;
+    player->coins_carried = 0;
+    player->deaths++;
+}
+
+void deletePlayer(struct Player *player) {
+    killPlayer(player);
+    free(player);
+    player = NULL;
     world.active_players--;
-    free(p);
-    p = NULL;
 }

@@ -19,7 +19,7 @@ void init_server() {
     // set server parameters
     server.up = 0;
     server.number_of_clients = MAX_CLIENTS;
-    strcpy(server.message, "Connection estabilished.");
+
 
     // create the server socket
     server.socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -37,6 +37,9 @@ void init_server() {
     if (listen(server.socket, MAX_CLIENTS) == 0) printf("Listening...\n");
     else printf("Error while setting up listen().\n");
 
+    server.pid = getpid();
+    sprintf(server.message, "%d", server.pid);
+    server.round = 0;
     server.up = 1;
 };
 
@@ -78,7 +81,6 @@ int is_position_valid(int row, int col) {
 
 void send_map(struct Player *player) {
     char map[PLAYER_POV][PLAYER_POV];
-
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
             if (is_position_valid(row - 3 + player->pos_row, col - 3 + player->pos_col)) {
@@ -89,12 +91,19 @@ void send_map(struct Player *player) {
             }
         }
     }
-
     send(player->socket, map, sizeof(map), 0);
 }
 
 void send_data(struct Player *player) {
-    // TODO send information about coins, position, deaths etc.
+    struct data_transfer data;
+    data.pos_X = player->pos_row;
+    data.pos_Y = player->pos_col;
+    data.coins_carried = player->coins_carried;
+    data.coins_saved = player->coins_saved;
+    data.deaths = player->deaths;
+    data.round = server.round;
+
+    send(player->socket, (void *) &data, sizeof(data), 0);
 }
 
 void *client_server_connection_handler(void *arg) {
@@ -109,6 +118,8 @@ void *client_server_connection_handler(void *arg) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == socket) {
                 player = create_player(socket);
+                recv(socket, buffer, sizeof(buffer), 0);
+                player->pid = atoi(buffer);
                 player->avatar = i + '1';
                 world.players[i] = player;
                 world.active_players++;
@@ -190,7 +201,6 @@ void *listen_for_clients(void *arg) {
     int client_socket = accept(server.socket, NULL, NULL);
 
     send(client_socket, server.message, sizeof(server.message), 0);
-    recv(client_socket, server.buffer, sizeof(server.buffer), 0);
 
     // check for empty client slots
     int flag = 1, i;
@@ -277,8 +287,6 @@ void *game(void *arg) {
     noecho();
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
-    // TODO game logic
-
     while (server.up) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
@@ -289,6 +297,7 @@ void *game(void *arg) {
         update_info();
         refresh();
         usleep(TURN_TIME);
+        server.round++;
     }
 
     pthread_exit(NULL);

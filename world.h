@@ -10,6 +10,8 @@ struct World {
     int active_players;
     struct Beast *beasts[MAX_BEASTS];
     char map[MAP_HEIGHT][MAP_WIDTH];
+    int campfire_row;
+    int campfire_col;
 } world;
 
 void load_map();
@@ -24,5 +26,11 @@ struct Player *create_player(int);
 void deletePlayer(struct Player *);
 void movePlayer(struct Player *, enum DIRECTION);
 int validMove(int, int);
+
+void print_player(struct Player *player, int row, int col);
+void handle_collision(struct Player *player, int row, int col);
+
+void dropTreasure(struct Player *player);
+void killPlayer(struct Player *player);
 
 #endif //CLIENT_WORLD_H
