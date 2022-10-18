@@ -12,8 +12,11 @@
 #include "server.h"
 #include "player.h"
 #include <time.h>
+#include <locale.h>
 
 pthread_t listeningThread, playingThread, keyListenerThread;
+
+// SERVER INITIALIZATION ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void init_server() {
     // set server parameters
@@ -43,6 +46,33 @@ void init_server() {
     server.up = 1;
 };
 
+void init_ui() {
+    initscr();
+
+    if (has_colors() == TRUE) {
+        start_color();
+        init_pair(1, COLOR_WHITE, COLOR_BLUE); // Blue for players
+        init_pair(2, COLOR_WHITE, COLOR_CYAN); // Blue for players
+        init_pair(3, COLOR_WHITE, COLOR_MAGENTA); // Blue for players
+        init_pair(4, COLOR_WHITE, COLOR_RED); // Blue for players
+
+        init_pair(11, COLOR_WHITE, COLOR_WHITE); // White for walls
+        init_pair(12, COLOR_GREEN, COLOR_BLACK); // Green for bushes
+        init_pair(13, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(14, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
+        init_pair(15, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
+    }
+
+    // Printing server's view
+    print_map();
+    print_initial_objects();
+    print_info();
+    refresh();
+}
+
+// CONNECTION MANAGEMENT ///////////////////////////////////////////////////////////////////////////////////////////////
+
+
 int is_open(int socket) {
     int res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
     if (res != 0) return 1;
@@ -56,54 +86,6 @@ void disconnect_socket(int socket) {
             close(socket);
         }
     }
-}
-
-void run_orders(struct Player *player) {
-    if (is_open(player->socket)) {
-        switch (player->command) {
-            case MOVE:
-                movePlayer(player, player->argument);
-                break;
-            case QUIT:
-                disconnect_socket(player->socket);
-                deletePlayer(player);
-            default:
-                break;
-        }
-    }
-    player->command = WAIT;
-}
-
-int is_position_valid(int row, int col) {
-    if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return 0;
-    return 1;
-}
-
-void send_map(struct Player *player) {
-    char map[PLAYER_POV][PLAYER_POV];
-    for (int row = 0; row < PLAYER_POV; row++) {
-        for (int col = 0; col < PLAYER_POV; col++) {
-            if (is_position_valid(row - 3 + player->pos_row, col - 3 + player->pos_col)) {
-                map[row][col] = world.map[row - 3 + player->pos_row][col - 3 + player->pos_col];
-            }
-            else {
-                map[row][col] = 'X';
-            }
-        }
-    }
-    send(player->socket, map, sizeof(map), 0);
-}
-
-void send_data(struct Player *player) {
-    struct data_transfer data;
-    data.pos_X = player->pos_row;
-    data.pos_Y = player->pos_col;
-    data.coins_carried = player->coins_carried;
-    data.coins_saved = player->coins_saved;
-    data.deaths = player->deaths;
-    data.round = server.round;
-
-    send(player->socket, (void *) &data, sizeof(data), 0);
 }
 
 void *client_server_connection_handler(void *arg) {
@@ -223,18 +205,87 @@ void *listen_for_clients(void *arg) {
     pthread_exit(NULL);
 }
 
+// DATA TRANSFER ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void send_map(struct Player *player) {
+    char map[PLAYER_POV][PLAYER_POV];
+    for (int row = 0; row < PLAYER_POV; row++) {
+        for (int col = 0; col < PLAYER_POV; col++) {
+            if (is_position_valid(row - (PLAYER_POV / 2) + player->pos_row, col - (PLAYER_POV / 2) + player->pos_col)) {
+                map[row][col] = world.map[row - (PLAYER_POV / 2) + player->pos_row][col - (PLAYER_POV / 2) + player->pos_col];
+            }
+            else {
+                map[row][col] = 'X';
+            }
+        }
+    }
+    if (server.up) send(player->socket, map, sizeof(map), 0);
+}
+
+void send_data(struct Player *player) {
+    struct data_transfer data;
+
+    data.pos_X = player->pos_row;
+    data.pos_Y = player->pos_col;
+    data.coins_carried = player->coins_carried;
+    data.coins_saved = player->coins_saved;
+    data.deaths = player->deaths;
+    data.round = server.round;
+    data.camp_x = world.campfire_row;
+    data.camp_y = world.campfire_col;
+
+    if (server.up) send(player->socket, (void *) &data, sizeof(data), 0);
+}
+
+
+// GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void run_orders(struct Player *player) {
+    if (is_open(player->socket)) {
+        switch (player->command) {
+            case MOVE:
+                movePlayer(player, player->argument);
+                break;
+            case QUIT:
+                disconnect_socket(player->socket);
+                deletePlayer(player);
+            default:
+                break;
+        }
+    }
+    player->command = WAIT;
+}
+
+int is_position_valid(int row, int col) {
+    if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return 0;
+    return 1;
+}
+
+void end_game() {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (world.players[i] != NULL) {
+            deletePlayer(world.players[i]);
+        }
+    }
+    server.up = 0;
+}
+
 void *key_listener(void *arg) {
     noecho();
 
     while (server.up) {
         unsigned char key = getch();
         switch (key) {
+            case 'r':
+            case 'R':
+                refresh_screen();
+                break;
             case 'Q':
             case 'q':
                 key = '0';
-                printw("q");
                 server.up = 0;
-                //endGame();
+                end_game();
                 break;
             case 'c':
                 key = '0';
@@ -262,35 +313,16 @@ void *key_listener(void *arg) {
     pthread_exit(NULL);
 }
 
-void init_ui() {
-    initscr();
-
-    if (has_colors() == TRUE) {
-        start_color();
-        init_pair(1, COLOR_WHITE, COLOR_WHITE); // White for walls
-        init_pair(2, COLOR_GREEN, COLOR_BLACK); // Green for bushes
-        init_pair(3, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
-        init_pair(4, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
-        init_pair(5, COLOR_CYAN, COLOR_BLUE); // Blue for players
-        init_pair(6, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
-    }
-
-    // Printing server's view
-    print_map();
-    print_info();
-
-    refresh();
-}
-
 void *game(void *arg) {
     init_ui();
     noecho();
+
+    int beast_handle = system("./beasts");
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
     while (server.up) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
-                mvprintw(0, i * 10, "%d - %d    ", server.clients[i], world.players[i]->socket);
                 run_orders(world.players[i]);
             }
         }
@@ -315,6 +347,5 @@ int main() { // server application
         pthread_create(&listeningThread, NULL, listen_for_clients, NULL);
         pthread_join(listeningThread, NULL);
     }
-
     return 0;
 }

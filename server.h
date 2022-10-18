@@ -22,8 +22,13 @@ struct data_transfer {
     int coins_carried;
     int deaths;
     int round;
+    int camp_x;
+    int camp_y;
 };
 
+void send_map(struct Player *player);
+void send_data(struct Player *player);
+int is_position_valid(int row, int col);
 void disconnect_socket(int);
 void init_ui();
 
