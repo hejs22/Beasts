@@ -8,6 +8,7 @@ struct ServerInfo {
     pthread_t pid;
     struct sockaddr_in address;
     int clients[MAX_CLIENTS];
+    int beast_client;
     int number_of_clients;
     int up;
     int round;

@@ -63,6 +63,7 @@ void estabilish_connection() {
     this_client.connected = 1;
     char server_response[256];
     recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+    send(this_client.network_socket, "1", sizeof("1"), 0);
 
     clear();
     mvprintw(0, 0, "Connection estabilished. ");

@@ -27,6 +27,7 @@ void init_server() {
     // create the server socket
     server.socket = socket(AF_INET, SOCK_STREAM, 0);
     for (int i = 0; i < MAX_CLIENTS; i++) server.clients[i] = -1;
+    server.beast_client = -1;
 
     // define server address
     server.address.sin_port = htons(9002);
@@ -179,30 +180,57 @@ void *client_server_connection_handler(void *arg) {
     pthread_exit(NULL);
 }
 
+void *beasts_connection_handler(void *arg) {
+    int socket = *(int *) arg;
+    int connected = 1;
+    char buffer[1024];
+
+    pthread_exit(NULL);
+}
+
 void *listen_for_clients(void *arg) {
     int client_socket = accept(server.socket, NULL, NULL);
 
     send(client_socket, server.message, sizeof(server.message), 0);
+    char c;
+    recv(client_socket, &c, sizeof(c), 0);
+    if (c == '1') { // this is player's client
 
-    // check for empty client slots
-    int flag = 1, i;
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        if (server.clients[i] == -1) {
-            server.clients[i] = client_socket;
-            flag = 0;
-            break;
+        // check for empty client slots
+        int flag = 1, i;
+        for (i = 0; i < MAX_CLIENTS; i++) {
+            if (server.clients[i] == -1) {
+                server.clients[i] = client_socket;
+                flag = 0;
+                break;
+            }
+        }
+        // if all slots are taken, disconnect socket and exit
+        if (flag) {
+            disconnect_socket(client_socket);
+            pthread_exit(NULL);
+        }
+
+        // create a handler thread for each connection and remember client's socket
+        pthread_t handler;
+        pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
+        pthread_exit(NULL);
+
+    }
+    else { // this is beast client
+        // TODO handle connection from beasts manager
+        if (server.beast_client == -1) {
+            server.beast_client = client_socket;
+
+            pthread_t handler;
+            pthread_create(&handler, NULL, beasts_connection_handler, (void *) &server.beast_client);
+            pthread_exit(NULL);
+        } else {
+            disconnect_socket(client_socket);
+            pthread_exit(NULL);
         }
     }
-    // if all slots are taken, disconnect socket and exit
-    if (flag) {
-        disconnect_socket(client_socket);
-        pthread_exit(NULL);
-    }
 
-    // create a handler thread for each connection and remember client's socket
-    pthread_t handler;
-    pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
-    pthread_exit(NULL);
 }
 
 // DATA TRANSFER ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -317,7 +345,7 @@ void *game(void *arg) {
     init_ui();
     noecho();
 
-    int beast_handle = system("./beasts");
+    //int beast_handle = system("./beasts");
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
     while (server.up) {
