@@ -28,8 +28,8 @@ struct Beast {
     int pos_row;
     int pos_col;
     int bush;
-    int port;
-    pthread_t pid;
+    enum COMMAND command;
+    int argument;
 };
 
 

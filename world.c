@@ -88,9 +88,6 @@ void update_info() {
             mvprintw(INFO_POS_Y + 9, INFO_POS_X + (i + 1) * 15, "?        ");
         }
     }
-
-    move(999,999);
-    refresh();
 }
 
 void print_info() {    // prints all additional info on console
@@ -154,7 +151,6 @@ void print_info() {    // prints all additional info on console
     attroff(A_BOLD);
     attroff(COLOR_PAIR(14));
 
-    move(999,999);
     update_info();
 }
 
@@ -204,10 +200,17 @@ void print_tile(enum TILE TYPE, int row, int col) {
         mvprintw(1 + row, 3 + col, "A");
         attroff(A_BOLD);
         attroff(COLOR_PAIR(14));
+    }   else if (TYPE == BEAST_TILE) {
+        attron(COLOR_PAIR(14));
+        attron(A_BOLD);
+        if (world.map[row][col] != '#') {
+            world.map[row][col] = '*';
+            mvprintw(1 + row, 3 + col, "*");
+        }
+        attroff(A_BOLD);
+        attroff(COLOR_PAIR(14));
     }
 
-    move(999,999);
-    refresh();
 }
 
 void print_player(struct Player *player, int row, int col) {
@@ -215,7 +218,6 @@ void print_player(struct Player *player, int row, int col) {
         attron(A_BOLD);
         if (world.map[row][col] != '#') {
             mvprintw(1 + row, 3 + col, "%c", player->avatar);
-            move(999,999);
             world.map[row][col] = player->avatar;
         }
         attroff(A_BOLD);
@@ -240,8 +242,7 @@ int find_treasure_at(int row, int col) {
     return coins;
 }
 
-void handle_collision(struct Player *player, int row, int col) {
-
+void handle_collision_player(struct Player *player, int row, int col) {
     if (world.map[row][col] == 'c') player->coins_carried += 1;
     else if (world.map[row][col] == 't') player->coins_carried += 10;
     else if (world.map[row][col] == 'T') player->coins_carried += 50;
@@ -257,14 +258,31 @@ void handle_collision(struct Player *player, int row, int col) {
     }
     else if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') || (world.map[row][col] == '4')) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
-            if ((world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
-                killPlayer(world.players[i]);
+            if (world.players[i] != NULL) {
+                if ((world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
+                    killPlayer(world.players[i]);
+                }
             }
         }
        killPlayer(player);
     }
     else if (world.map[row][col] == '#') {
         player->bush = 1;
+    }
+}
+
+void handle_collision_beast(struct Beast *beast, int row, int col) {
+    if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') || (world.map[row][col] == '4')) {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (world.players[i] != NULL) {
+                if ((world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
+                    killPlayer(world.players[i]);
+                }
+            }
+        }
+    }
+    else if (world.map[row][col] == '#') {
+        beast->bush = 1;
     }
 }
 
@@ -280,28 +298,28 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
     switch (dir) {
         case UP:
            if (validMove(player->pos_row - 1, player->pos_col)) {
-               handle_collision(player, player->pos_row - 1, player->pos_col);
+               handle_collision_player(player, player->pos_row - 1, player->pos_col);
                print_tile(EMPTY, player->pos_row, player->pos_col);
                player->pos_row -= 1;
            }
             break;
         case DOWN:
             if (validMove(player->pos_row + 1, player->pos_col)) {
-                handle_collision(player, player->pos_row + 1, player->pos_col);
+                handle_collision_player(player, player->pos_row + 1, player->pos_col);
                 print_tile(EMPTY, player->pos_row, player->pos_col);
                 player->pos_row += 1;
             }
             break;
         case LEFT:
             if (validMove(player->pos_row, player->pos_col - 1)) {
-                handle_collision(player, player->pos_row, player->pos_col - 1);
+                handle_collision_player(player, player->pos_row, player->pos_col - 1);
                 print_tile(EMPTY, player->pos_row, player->pos_col);
                 player->pos_col -= 1;
             }
             break;
         case RIGHT:
             if (validMove(player->pos_row, player->pos_col + 1)) {
-                handle_collision(player, player->pos_row, player->pos_col + 1);
+                handle_collision_player(player, player->pos_row, player->pos_col + 1);
                 print_tile(EMPTY, player->pos_row, player->pos_col);
                 player->pos_col += 1;
             }
@@ -313,7 +331,48 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
     }
 
     print_player(player, player->pos_row, player->pos_col);
-    player->bush = 0;
+}
+
+void moveBeast(struct Beast *beast, enum DIRECTION dir) {
+    if (beast == NULL) return;
+
+    switch (dir) {
+        case UP:
+            if (validMove(beast->pos_row - 1, beast->pos_col)) {
+                handle_collision_beast(beast, beast->pos_row - 1, beast->pos_col);
+                print_tile(EMPTY, beast->pos_row, beast->pos_col);
+                beast->pos_row -= 1;
+            }
+            break;
+        case DOWN:
+            if (validMove(beast->pos_row + 1, beast->pos_col)) {
+                handle_collision_beast(beast, beast->pos_row - 1, beast->pos_col);
+                print_tile(EMPTY, beast->pos_row, beast->pos_col);
+                beast->pos_row += 1;
+            }
+            break;
+        case LEFT:
+            if (validMove(beast->pos_row, beast->pos_col - 1)) {
+                handle_collision_beast(beast, beast->pos_row - 1, beast->pos_col);
+                print_tile(EMPTY, beast->pos_row, beast->pos_col);
+                beast->pos_col -= 1;
+            }
+            break;
+        case RIGHT:
+            if (validMove(beast->pos_row, beast->pos_col + 1)) {
+                handle_collision_beast(beast, beast->pos_row - 1, beast->pos_col);
+                print_tile(EMPTY, beast->pos_row, beast->pos_col);
+                beast->pos_col += 1;
+            }
+            break;
+        case STOP:
+            break;
+        default:
+            break;
+    }
+
+
+    print_tile(BEAST_TILE, beast->pos_row, beast->pos_col);
 }
 
 struct Player *create_player(int socket) {
@@ -341,6 +400,28 @@ struct Player *create_player(int socket) {
     new->coins_saved = 0;
     new->deaths = 0;
     new->socket = socket;
+
+    return new;
+}
+
+struct Beast *create_beast() {
+    struct Beast *new = malloc(sizeof(struct Beast));
+    if (new == NULL) return NULL;
+
+    int flag = 1, rand_col, rand_row;
+
+    while (flag) {
+        rand_col = rand() % MAP_WIDTH;
+        rand_row = rand() % MAP_HEIGHT;
+        if (world.map[rand_row][rand_col] == ' ') {
+            print_tile(BEAST_TILE, rand_row, rand_col);
+            flag = 0;
+        }
+    }
+
+    new->pos_col = rand_col;
+    new->pos_row = rand_row;
+    new->bush = 0;
 
     return new;
 }

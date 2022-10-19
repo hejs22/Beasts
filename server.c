@@ -44,6 +44,8 @@ void init_server() {
     server.pid = getpid();
     sprintf(server.message, "%d", server.pid);
     server.round = 0;
+    world.active_players = 0;
+    world.active_beasts = 0;
     server.up = 1;
 };
 
@@ -170,10 +172,16 @@ void *client_server_connection_handler(void *arg) {
                 default:
                     break;
             }
+
+
+            if (player->bush) {
+                player->command = WAIT;
+                player->bush = 0;
+            }
+
             send_map(player);
             send_data(player);
             buffer[0] = WAIT;
-            refresh();
         }
 
     }
@@ -184,6 +192,55 @@ void *beasts_connection_handler(void *arg) {
     int socket = *(int *) arg;
     int connected = 1;
     char buffer[1024];
+
+    while (connected) {
+        for (int i = 0; i < world.active_beasts; i++) {
+            long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
+            if ((bytes_received > 0) && (world.beasts[i] != NULL)) {
+                enum COMMAND request = (enum COMMAND) buffer[1];
+                int parameter = (int) buffer[2];
+
+                switch (request) {
+                    case MOVE:
+                        world.beasts[buffer[0]]->command = MOVE;
+                        switch (parameter) {
+                            case UP:
+                                world.beasts[buffer[0]]->argument = UP;
+                                break;
+                            case DOWN:
+                                world.beasts[buffer[0]]->argument = DOWN;
+                                break;
+                            case LEFT:
+                                world.beasts[buffer[0]]->argument = LEFT;
+                                break;
+                            case RIGHT:
+                                world.beasts[buffer[0]]->argument = RIGHT;
+                                break;
+                            default:
+                                world.beasts[buffer[0]]->argument = STOP;
+                                break;
+                        }
+                        break;
+                    case WAIT:
+                        break;
+                    case QUIT:
+                        disconnect_socket(server.beast_client);
+                        connected = 0;
+                        break;
+                    default:
+                        break;
+                }
+                buffer[1] = WAIT;
+            } else {
+                connected = 0;
+            }
+
+            if (world.beasts[buffer[0]]->bush) {
+                world.beasts[buffer[0]]->command = WAIT;
+                world.beasts[buffer[0]]->bush = 0;
+            }
+        }
+    }
 
     pthread_exit(NULL);
 }
@@ -218,7 +275,6 @@ void *listen_for_clients(void *arg) {
 
     }
     else { // this is beast client
-        // TODO handle connection from beasts manager
         if (server.beast_client == -1) {
             server.beast_client = client_socket;
 
@@ -285,6 +341,16 @@ void run_orders(struct Player *player) {
     player->command = WAIT;
 }
 
+void run_orders_beast(struct Beast *beast) {
+        switch (beast->command) {
+            case MOVE:
+                moveBeast(beast, beast->argument);
+                break;
+            default:
+                break;
+        }
+}
+
 int is_position_valid(int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return 0;
     return 1;
@@ -297,6 +363,21 @@ void end_game() {
         }
     }
     server.up = 0;
+}
+
+void spawn_beast() {
+    if ((world.active_beasts < MAX_BEASTS) && (server.beast_client != -1)) {
+        char buffer[1024];
+        buffer[0] = SPAWN_BEAST;
+        send(server.beast_client, buffer, sizeof(buffer), 0);
+        for (int i = 0; i < MAX_BEASTS; i++) {
+            if (world.beasts[i] == NULL) {
+                world.beasts[i] = create_beast();
+                break;
+            }
+        }
+        world.active_beasts++;
+    }
 }
 
 void *key_listener(void *arg) {
@@ -331,7 +412,7 @@ void *key_listener(void *arg) {
             case 'b':
                 key = '0';
                 // TODO add beasts
-
+                spawn_beast();
                 break;
             default:
                 key = '0';
@@ -354,10 +435,15 @@ void *game(void *arg) {
                 run_orders(world.players[i]);
             }
         }
+        for (int i = 0; i < MAX_BEASTS; i++) {
+            if (world.beasts[i] != NULL) {
+                run_orders_beast(world.beasts[i]);
+            }
+        }
         update_info();
         refresh();
-        usleep(TURN_TIME);
         server.round++;
+        usleep(TURN_TIME);
     }
 
     pthread_exit(NULL);

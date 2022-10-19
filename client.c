@@ -65,6 +65,10 @@ void estabilish_connection() {
     recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
     send(this_client.network_socket, "1", sizeof("1"), 0);
 
+    int pid = getpid();
+    sprintf(this_client.buffer, "%d", pid);
+    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
+
     clear();
     mvprintw(0, 0, "Connection estabilished. ");
     this_client.server_pid = atoi(server_response);
@@ -78,6 +82,7 @@ void leave_game() {
     int score = this_client.coins_saved;
     mvprintw(2, 2, "Game over, your score: %d. Press any key to continue...", score);
     attroff(A_BOLD);
+    usleep(10000000);
     getch();
 }
 
@@ -138,6 +143,14 @@ void print_tile_client(char c, int row, int col) {
             attron(COLOR_PAIR(15));
             mvprintw(1 + row, 3 + col, " ");
             attroff(COLOR_PAIR(15));
+            break;
+        case '*':
+            attron(COLOR_PAIR(14));
+            attron(A_BOLD);
+            mvprintw(1 + row, 3 + col, "*");
+            attroff(A_BOLD);
+            attroff(COLOR_PAIR(14));
+            break;
         default:
             break;
     }
@@ -195,8 +208,6 @@ void print_legend() {
     mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 36, "*");
     attroff(A_BOLD);
     attroff(COLOR_PAIR(14));
-
-    refresh();
 }
 
 void print_map_client() {
@@ -246,8 +257,6 @@ void init_ui_client() {
     clear();
     print_legend();
 }
-
-
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -304,7 +313,6 @@ void *key_listener(void *arg) {
         switch (key) {
             case 'Q':
             case 'q':
-                this_client.connected = 0;
                 leave_game();
                 break;
             case 'w':
@@ -341,17 +349,16 @@ void ai_client() {
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
     get_map();
     get_info();
-    refresh();
     usleep(TURN_TIME);
 }
 
 void game_client() {
-    print_legend();
     if (this_client.playertype == CPU) {
         this_client.request[0] = MOVE;
         srand(time(0));
         while (this_client.connected) {
             ai_client();
+            refresh();
         }
 
     } else if (this_client.playertype == HUMAN) {
@@ -362,7 +369,6 @@ void game_client() {
             get_map();
             get_info();
             refresh();
-
             this_client.request[0] = WAIT;
             usleep(TURN_TIME);
         }
@@ -377,12 +383,9 @@ int main() { // client application
     client_configure();
     estabilish_connection();
 
-    // send data to server
-    int pid = getpid();
-    sprintf(this_client.buffer, "%d", pid);
-    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
-
     init_ui_client();
+    print_legend();
+    refresh();
     game_client();
     return 0;
 }

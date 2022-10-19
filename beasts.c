@@ -21,6 +21,7 @@ struct client_socket {
     char map[PLAYER_POV][PLAYER_POV];
     char request[2];
     int connected;
+    int amount_of_beasts;
     pthread_t server_pid;
 
     int pos_row;
@@ -59,6 +60,8 @@ void estabilish_connection() {
     clear();
     printf("Connection estabilished. ");
     this_client.server_pid = atoi(server_response);
+
+    this_client.amount_of_beasts = 0;
 }
 
 void leave_game() {
@@ -69,22 +72,10 @@ void leave_game() {
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void get_map() {
-    long bytes_received = recv(this_client.network_socket, this_client.map, sizeof(this_client.map), 0);
-    if (bytes_received <= 0) {
-        leave_game();
-    }
-}
-
 struct data_transfer {
+    char map[PLAYER_POV][PLAYER_POV];
     int pos_X;
     int pos_Y;
-    int coins_saved;
-    int coins_carried;
-    int deaths;
-    int round;
-    int camp_x;
-    int camp_y;
 };
 
 void get_info() {
@@ -102,26 +93,39 @@ void get_info() {
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-void ai_client() {
-    this_client.request[1] = rand() % 4;
-    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-    get_map();
-    get_info();
-    usleep(TURN_TIME);
+void *handle_beast(void *arg) {
+    int beast_id = *(int *) arg;
+    char request[3];
+    request[0] = beast_id;
+    request[1] = MOVE;
+    while (this_client.connected) {
+        printf("\nBeast %d is alive. ", beast_id);
+        request[2] = rand() % 4;
+        send(this_client.network_socket, request, sizeof(request), 0);
+        usleep(TURN_TIME);
+    }
 }
 
-void game_client() {
+void beast_manager() {
     this_client.request[0] = MOVE;
     srand(time(0));
     while (this_client.connected) {
-        ai_client();
+        char buffer[1024];
+        long bytes_received = recv(this_client.network_socket, buffer, sizeof(buffer), 0);
+        if (bytes_received > 0) {
+            if (buffer[0] == SPAWN_BEAST) {
+                pthread_t new;
+                int beast_id = this_client.amount_of_beasts;
+                pthread_create(&new, NULL, handle_beast, &beast_id);
+                this_client.amount_of_beasts++;
+            }
+        }
+        buffer[0] = 0;
     }
     leave_game();
 }
 
 int main() { // client application
-
     client_configure();
     estabilish_connection();
 
@@ -130,6 +134,8 @@ int main() { // client application
     sprintf(this_client.buffer, "%d", pid);
     send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
 
-    game_client();
+    beast_manager();
+
+    usleep(1000000);
     return 0;
 }

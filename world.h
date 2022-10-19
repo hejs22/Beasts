@@ -3,12 +3,13 @@
 
 #include "player.h"
 
-enum TILE {BUSH, SMALL_TREASURE, MEDIUM_TREASURE, BIG_TREASURE, WALL, EMPTY, PLAYER, CAMPFIRE, DROPPED_TREASURE};
+enum TILE {BUSH, SMALL_TREASURE, MEDIUM_TREASURE, BIG_TREASURE, WALL, EMPTY, PLAYER, CAMPFIRE, DROPPED_TREASURE, BEAST_TILE};
 
 struct World {
     struct Player *players[MAX_CLIENTS];
     int active_players;
     struct Beast *beasts[MAX_BEASTS];
+    int active_beasts;
     char map[MAP_HEIGHT][MAP_WIDTH];
     int treasure_map[MAP_HEIGHT][MAP_WIDTH];
     int campfire_row;
@@ -26,12 +27,15 @@ void create_object(enum TILE);
 void print_initial_objects();
 
 struct Player *create_player(int);
+struct Beast *create_beast();
+
 void deletePlayer(struct Player *);
-void movePlayer(struct Player *, enum DIRECTION);
+void movePlayer(struct Player *, enum DIRECTION dir);
+void moveBeast(struct Beast *, enum DIRECTION);
 int validMove(int, int);
 
 void print_player(struct Player *player, int row, int col);
-void handle_collision(struct Player *player, int row, int col);
+void handle_collision_player(struct Player *player, int row, int col);
 
 void dropTreasure(struct Player *player);
 void killPlayer(struct Player *player);
