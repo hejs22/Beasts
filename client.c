@@ -345,13 +345,6 @@ int is_not_obstacle(int row, int col) {
     return 1;
 }
 
-
- //  X X X X X   Pov / 2 = 2
- //  X X X X X
- //  X X O X X
- //  X X X X X
- //  X X X X X
-
 int is_collectible(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
@@ -455,7 +448,6 @@ enum DIRECTION scan_area() {
         default:
             break;
     }
-
 
 
     return dir;

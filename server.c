@@ -135,7 +135,6 @@ void *client_server_connection_handler(void *arg) {
             connected = 0;
         }
 
-        send(socket, "OK", 2, 0);
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
         if (bytes_received > 0) {
             enum COMMAND request = (enum COMMAND) buffer[0];
@@ -184,7 +183,6 @@ void *client_server_connection_handler(void *arg) {
             send_data(player);
             buffer[0] = WAIT;
         }
-        usleep(TURN_TIME);
     }
     pthread_exit(NULL);
 }
@@ -196,7 +194,6 @@ void *beasts_connection_handler(void *arg) {
 
     while (connected) {
         for (int i = 0; i < world.active_beasts; i++) {
-            send(socket, "OK", 2, 0);
             long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
             if ((bytes_received > 0) && (world.beasts[i] != NULL)) {
                 enum COMMAND request = (enum COMMAND) buffer[1];
@@ -433,11 +430,13 @@ void *game(void *arg) {
     while (server.up) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
+                send(world.players[i]->socket, "OK", 2, 0);
                 run_orders(world.players[i]);
             }
         }
         for (int i = 0; i < MAX_BEASTS; i++) {
             if (world.beasts[i] != NULL) {
+                send(server.beast_client, "OK", 2, 0);
                 run_orders_beast(world.beasts[i]);
             }
         }
@@ -458,7 +457,6 @@ int main() { // server application
     pthread_create(&playingThread, NULL, game, NULL);
 
     while (server.up) {
-        usleep(TURN_TIME);
         pthread_create(&listeningThread, NULL, listen_for_clients, NULL);
         pthread_join(listeningThread, NULL);
     }
