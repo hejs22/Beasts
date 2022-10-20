@@ -7,135 +7,95 @@
 #include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
-#include "player.h"
-#include "config.h"
 #include <time.h>
+#include <locale.h>
+
+#include "config.h"
+#include "world.h"
+#include "server.h"
+#include "player.h"
+#include "beasts.h"
 
 
-// DATA STRUCTURES //////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct client_socket {
-    int network_socket;
-    struct sockaddr_in server_address;
-    char buffer[1024];
-    char map[PLAYER_POV][PLAYER_POV];
-    char request[2];
-    int connected;
-    int amount_of_beasts;
-    pthread_t server_pid;
-
-    int pos_row;
-    int pos_col;
-
-} this_client;
-
-
-// CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
-
-void client_configure() {
-    // create a socket
-    this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);  // socket is created
-
-    // create address structure, specify address for the socket
-    this_client.server_address.sin_family = AF_INET;
-    this_client.server_address.sin_port = htons(9002);
-    this_client.server_address.sin_addr.s_addr = INADDR_ANY;
+int validMoveBeasts(int row, int col) {
+    if ((row < 0) || (col < 0) || (col >= MAP_WIDTH) || (row >= MAP_HEIGHT)) return 0;
+    if ((world.map[row][col] == 'X') || (world.map[row][col] == 'A') || (world.map[row][col] == '*')) return 0;
+    return 1;
 }
 
-void estabilish_connection() {
-    int i = 0;
-    while (i < 10) {
-        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address, sizeof(this_client.server_address));
-        if (connection_status >= 0) break;
-        printf("Waiting for server initialization...\n");
-        usleep(TURN_TIME * 5);
-        i++;
+void moveBeast(struct Beast *beast, enum DIRECTION dir) {
+    if (beast == NULL) return;
+
+    print_tile(beast->standing_at, beast->pos_row, beast->pos_col);
+    switch (dir) {
+        case UP:
+            if (validMoveBeasts(beast->pos_row - 1, beast->pos_col)) {
+                handle_collision_beast(beast, beast->pos_row - 1, beast->pos_col);
+                beast->pos_row -= 1;
+            }
+            break;
+        case DOWN:
+            if (validMoveBeasts(beast->pos_row + 1, beast->pos_col)) {
+                handle_collision_beast(beast, beast->pos_row + 1, beast->pos_col);
+                beast->pos_row += 1;
+            }
+            break;
+        case LEFT:
+            if (validMoveBeasts(beast->pos_row, beast->pos_col - 1)) {
+                handle_collision_beast(beast, beast->pos_row, beast->pos_col - 1);
+                beast->pos_col -= 1;
+            }
+            break;
+        case RIGHT:
+            if (validMoveBeasts(beast->pos_row, beast->pos_col + 1)) {
+                handle_collision_beast(beast, beast->pos_row, beast->pos_col + 1);
+                beast->pos_col += 1;
+            }
+            break;
+        case STOP:
+            break;
+        default:
+            break;
     }
 
-    this_client.connected = 1;
-    char server_response[256];
-    recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
-    send(this_client.network_socket, "0", sizeof("0"), 0);
-
-    clear();
-    printf("Connection estabilished. ");
-    this_client.server_pid = atoi(server_response);
-
-    this_client.amount_of_beasts = 0;
+    beast->standing_at = get_tile_at(beast->pos_row, beast->pos_col);
+    print_tile(BEAST_TILE, beast->pos_row, beast->pos_col);
 }
 
-void leave_game() {
-    close(this_client.network_socket);
-    this_client.connected = 0;
-    getch();
-}
+struct Beast *create_beast() {
+    struct Beast *new = malloc(sizeof(struct Beast));
+    if (new == NULL) return NULL;
 
-// DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
+    int flag = 1, rand_col, rand_row;
 
-struct data_transfer {
-    char map[PLAYER_POV][PLAYER_POV];
-    int pos_X;
-    int pos_Y;
-};
-
-void get_info() {
-    struct data_transfer data;
-    long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
-
-    if (bytes_received <= 0) {
-        leave_game();
-    } else {
-        this_client.pos_row = data.pos_X;
-        this_client.pos_col = data.pos_Y;
+    while (flag) {
+        rand_col = rand() % MAP_WIDTH;
+        rand_row = rand() % MAP_HEIGHT;
+        if (world.map[rand_row][rand_col] == ' ') {
+            print_tile(BEAST_TILE, rand_row, rand_col);
+            flag = 0;
+        }
     }
 
+    new->pos_col = rand_col;
+    new->pos_row = rand_row;
+    new->bush = 0;
+    new->standing_at = EMPTY;
+
+    return new;
 }
 
-// GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void *handle_beast(void *arg) {
-    int beast_id = *(int *) arg;
-    char request[3];
-    request[0] = beast_id;
-    request[1] = MOVE;
-    while (this_client.connected) {
-        printf("\nBeast %d is alive. ", beast_id);
-        request[2] = rand() % 4;
-        send(this_client.network_socket, request, sizeof(request), 0);
-        usleep(TURN_TIME);
-    }
-}
-
-void beast_manager() {
-    this_client.request[0] = MOVE;
-    srand(time(0));
-    while (this_client.connected) {
-        char buffer[1024];
-        long bytes_received = recv(this_client.network_socket, buffer, sizeof(buffer), 0);
-        if (bytes_received > 0) {
-            if (buffer[0] == SPAWN_BEAST) {
-                pthread_t new;
-                int beast_id = this_client.amount_of_beasts;
-                pthread_create(&new, NULL, handle_beast, &beast_id);
-                this_client.amount_of_beasts++;
+void handle_collision_beast(struct Beast *beast, int row, int col) {
+    if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') || (world.map[row][col] == '4')) {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (world.players[i] != NULL) {
+                if ((world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
+                    killPlayer(world.players[i]);
+                }
             }
         }
-        buffer[0] = 0;
     }
-    leave_game();
-}
-
-int main() { // client application
-    client_configure();
-    estabilish_connection();
-
-    // send data to server
-    int pid = getpid();
-    sprintf(this_client.buffer, "%d", pid);
-    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
-
-    beast_manager();
-
-    usleep(1000000);
-    return 0;
+    else if (world.map[row][col] == '#') {
+        beast->bush = 1;
+    }
 }

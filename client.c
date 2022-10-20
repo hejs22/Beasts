@@ -7,11 +7,10 @@
 #include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
-
-#include "player.h"
-#include "config.h"
-
 #include <time.h>
+#include <locale.h>
+
+#include "config.h"
 
 
 // DATA STRUCTURES //////////////////////////////////////////////////////////////////////////////////////////////////

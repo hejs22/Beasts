@@ -1,9 +1,8 @@
 #ifndef CLIENT_PLAYER_H
 #define CLIENT_PLAYER_H
 
-enum DIRECTION {UP, RIGHT, DOWN, LEFT, STOP};
-enum PLAYERTYPE {CPU, BEAST, HUMAN};
-enum COMMAND {MOVE, QUIT, JOIN, WAIT, GET_MAP, SPAWN_BEAST, SPAWN_CPU, SPAWN_SMALL_TREASURE, SPAWN_MEDIUM_TREASURE, SPAWN_BIG_TREASURE};
+#include "config.h"
+#include "world.h"
 
 struct Player {
     int pos_row;
@@ -30,7 +29,19 @@ struct Beast {
     int bush;
     enum COMMAND command;
     int argument;
+    enum TILE standing_at;
 };
 
+
+void print_player(struct Player *player, int row, int col);
+void handle_collision_player(struct Player *player, int row, int col);
+
+void dropTreasure(struct Player *player);
+void killPlayer(struct Player *player);
+
+struct Player *create_player(int);
+void deletePlayer(struct Player *);
+void movePlayer(struct Player *, enum DIRECTION dir);
+int validMove(int, int);
 
 #endif //CLIENT_PLAYER_H

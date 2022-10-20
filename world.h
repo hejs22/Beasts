@@ -1,9 +1,7 @@
 #ifndef CLIENT_WORLD_H
 #define CLIENT_WORLD_H
 
-#include "player.h"
-
-enum TILE {BUSH, SMALL_TREASURE, MEDIUM_TREASURE, BIG_TREASURE, WALL, EMPTY, PLAYER, CAMPFIRE, DROPPED_TREASURE, BEAST_TILE};
+#include "config.h"
 
 struct World {
     struct Player *players[MAX_CLIENTS];
@@ -26,18 +24,7 @@ void print_tile(enum TILE, int, int);
 void create_object(enum TILE);
 void print_initial_objects();
 
-struct Player *create_player(int);
-struct Beast *create_beast();
-
-void deletePlayer(struct Player *);
-void movePlayer(struct Player *, enum DIRECTION dir);
-void moveBeast(struct Beast *, enum DIRECTION);
-int validMove(int, int);
-
-void print_player(struct Player *player, int row, int col);
-void handle_collision_player(struct Player *player, int row, int col);
-
-void dropTreasure(struct Player *player);
-void killPlayer(struct Player *player);
+int find_treasure_at(int row, int col);
+enum TILE get_tile_at(int row, int col);
 
 #endif //CLIENT_WORLD_H

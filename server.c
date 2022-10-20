@@ -7,12 +7,14 @@
 #include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
+#include <time.h>
+#include <locale.h>
+
 #include "config.h"
 #include "world.h"
 #include "server.h"
 #include "player.h"
-#include <time.h>
-#include <locale.h>
+#include "beasts.h"
 
 pthread_t listeningThread, playingThread, keyListenerThread;
 
@@ -463,3 +465,6 @@ int main() { // server application
     }
     return 0;
 }
+
+
+// TODO allow beasts to chase players, allow players to run from beasts, implement beast manager disconnection function, check why all player pids are 0, check why clients terminates instantly after server dies
