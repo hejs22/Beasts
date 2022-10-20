@@ -15,7 +15,7 @@ struct Player {
     int bush;
     int socket;
 
-    char avatar;
+    unsigned char avatar;
     int human;
     enum COMMAND command;
     int argument;

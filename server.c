@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
 #include <time.h>
@@ -44,7 +43,7 @@ void init_server() {
     else printf("Error while setting up listen().\n");
 
     server.pid = getpid();
-    sprintf(server.message, "%d", server.pid);
+    sprintf(server.message, "%lu", server.pid);
     server.round = 0;
     world.active_players = 0;
     world.active_beasts = 0;
@@ -79,7 +78,7 @@ void init_ui() {
 
 
 int is_open(int socket) {
-    int res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
+    long res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
     if (res != 0) return 1;
     return 0;
 }
@@ -136,6 +135,7 @@ void *client_server_connection_handler(void *arg) {
             connected = 0;
         }
 
+        send(socket, "OK", 2, 0);
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
         if (bytes_received > 0) {
             enum COMMAND request = (enum COMMAND) buffer[0];
@@ -181,11 +181,10 @@ void *client_server_connection_handler(void *arg) {
                 player->bush = 0;
             }
 
-            send_map(player);
             send_data(player);
             buffer[0] = WAIT;
         }
-
+        usleep(TURN_TIME);
     }
     pthread_exit(NULL);
 }
@@ -197,6 +196,7 @@ void *beasts_connection_handler(void *arg) {
 
     while (connected) {
         for (int i = 0; i < world.active_beasts; i++) {
+            send(socket, "OK", 2, 0);
             long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
             if ((bytes_received > 0) && (world.beasts[i] != NULL)) {
                 enum COMMAND request = (enum COMMAND) buffer[1];
@@ -241,7 +241,11 @@ void *beasts_connection_handler(void *arg) {
                 world.beasts[buffer[0]]->command = WAIT;
                 world.beasts[buffer[0]]->bush = 0;
             }
+
+          //  TODO Decide whether to send small map to every beast OR send whole map to beasts manager
+          //  send_map(world.beasts[buffer[0]]);
         }
+        usleep(TURN_TIME);
     }
 
     pthread_exit(NULL);
@@ -293,24 +297,19 @@ void *listen_for_clients(void *arg) {
 
 // DATA TRANSFER ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void send_data(struct Player *player) {
+    struct data_transfer data;
 
-void send_map(struct Player *player) {
-    char map[PLAYER_POV][PLAYER_POV];
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
             if (is_position_valid(row - (PLAYER_POV / 2) + player->pos_row, col - (PLAYER_POV / 2) + player->pos_col)) {
-                map[row][col] = world.map[row - (PLAYER_POV / 2) + player->pos_row][col - (PLAYER_POV / 2) + player->pos_col];
+                data.map[row][col] = world.map[row - (PLAYER_POV / 2) + player->pos_row][col - (PLAYER_POV / 2) + player->pos_col];
             }
             else {
-                map[row][col] = 'X';
+                data.map[row][col] = 'X';
             }
         }
     }
-    if (server.up) send(player->socket, map, sizeof(map), 0);
-}
-
-void send_data(struct Player *player) {
-    struct data_transfer data;
 
     data.pos_X = player->pos_row;
     data.pos_Y = player->pos_col;

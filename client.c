@@ -37,6 +37,19 @@ struct client_socket {
 } this_client;
 
 
+struct data_transfer {
+    char map[PLAYER_POV][PLAYER_POV];
+    int pos_X;
+    int pos_Y;
+    int coins_saved;
+    int coins_carried;
+    int deaths;
+    int round;
+    int camp_x;
+    int camp_y;
+};
+
+
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
 void client_configure() {
@@ -81,7 +94,6 @@ void leave_game() {
     int score = this_client.coins_saved;
     mvprintw(2, 2, "Game over, your score: %d. Press any key to continue...", score);
     attroff(A_BOLD);
-    usleep(10000000);
     getch();
 }
 
@@ -259,26 +271,6 @@ void init_ui_client() {
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void get_map() {
-    long bytes_received = recv(this_client.network_socket, this_client.map, sizeof(this_client.map), 0);
-    if (bytes_received <= 0) {
-        leave_game();
-    } else {
-        print_map_client();
-    }
-}
-
-struct data_transfer {
-    int pos_X;
-    int pos_Y;
-    int coins_saved;
-    int coins_carried;
-    int deaths;
-    int round;
-    int camp_x;
-    int camp_y;
-};
-
 void get_info() {
     struct data_transfer data;
     long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
@@ -286,6 +278,7 @@ void get_info() {
     if (bytes_received <= 0) {
         leave_game();
     } else {
+        strcpy(*this_client.map, *data.map);
         this_client.pos_row = data.pos_X;
         this_client.pos_col = data.pos_Y;
         this_client.deaths = data.deaths;
@@ -295,6 +288,7 @@ void get_info() {
         this_client.camp_x = data.camp_x;
         this_client.camp_y = data.camp_y;
 
+        print_map_client();
         print_info_client();
     }
 
@@ -342,13 +336,138 @@ void *key_listener(void *arg) {
     pthread_exit(NULL);
 }
 
+int is_not_obstacle(int row, int col) {
+    row += (PLAYER_POV / 2);
+    col += (PLAYER_POV / 2);
+    if ((this_client.map[row][col] == 'A') || (this_client.map[row][col] == 'X') || (this_client.map[row][col] == '*')) {
+        return 0;
+    }
+    return 1;
+}
+
+
+ //  X X X X X   Pov / 2 = 2
+ //  X X X X X
+ //  X X O X X
+ //  X X X X X
+ //  X X X X X
+
+int is_collectible(int row, int col) {
+    row += (PLAYER_POV / 2);
+    col += (PLAYER_POV / 2);
+    if ((this_client.map[row][col] == 'D') || (this_client.map[row][col] == 'T') || (this_client.map[row][col] == 't') || (this_client.map[row][col] == 'c')) {
+        return 1;
+    }
+    return 0;
+}
+
+enum DIRECTION scan_area() {
+    enum DIRECTION dir = STOP;
+
+    if (is_collectible(1, 0)) {
+        dir = DOWN;
+    } else if (is_collectible(-1, 0)) {
+        dir = UP;
+    } else if (is_collectible(0, 1)) {
+        dir = RIGHT;
+    } else if (is_collectible(0, -1)) {
+        dir = LEFT;
+    }
+
+    if (dir == STOP) {
+        if (is_not_obstacle(1, 0) && is_collectible(2, 0)) {
+            dir = DOWN;
+        } else if (is_not_obstacle(-1, 0) && is_collectible(-2, 0)) {
+            dir = UP;
+        } else if (is_not_obstacle(0, 1) && is_collectible(0, 2)) {
+            dir = RIGHT;
+        } else  if (is_not_obstacle(0, -1) && is_collectible(0, -2)) {
+            dir = LEFT;
+        }
+    }
+
+
+    if (dir == STOP) {
+       dir = rand() % 4;
+    }
+
+     switch(dir) {
+        case UP:
+            if (!(is_not_obstacle(-1, 0))) {
+                if (is_not_obstacle(1, 0)) {
+                    dir = DOWN;
+                } else {
+                    if (is_not_obstacle(0, 1)) {
+                        dir = RIGHT;
+                    } else {
+                        if (is_not_obstacle(0, -1)) {
+                            dir = LEFT;
+                        }
+                    }
+                }
+            }
+            break;
+        case DOWN:
+            if (!(is_not_obstacle(1, 0))) {
+                if (is_not_obstacle(-1, 0)) {
+                    dir = UP;
+                } else {
+                    if (is_not_obstacle(0, 1)) {
+                        dir = RIGHT;
+                    } else {
+                        if (is_not_obstacle(0, -1)) {
+                            dir = LEFT;
+                        }
+                    }
+                }
+            }
+            break;
+        case LEFT:
+            if (!(is_not_obstacle(0, 1))) {
+                if (is_not_obstacle(0, -1)) {
+                    dir = RIGHT;
+                } else {
+                    if (is_not_obstacle(-1, 0)) {
+                        dir = UP;
+                    } else {
+                        if (is_not_obstacle(1, 0)) {
+                            dir = DOWN;
+                        }
+                    }
+                }
+            }
+            break;
+        case RIGHT:
+            if (!(is_not_obstacle(0, -1))) {
+                if (is_not_obstacle(0, 1)) {
+                    dir = LEFT;
+                } else {
+                    if (is_not_obstacle(-1, 0)) {
+                        dir = UP;
+                    } else {
+                        if (is_not_obstacle(1, 0)) {
+                            dir = DOWN;
+                        }
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+    }
+
+
+
+    return dir;
+}
 
 void ai_client() {
-    this_client.request[1] = rand() % 4;
+    this_client.request[1] = scan_area();
+    if (recv(this_client.network_socket, this_client.buffer, 2, 0) <= 0) {
+        leave_game();
+    }
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-    get_map();
     get_info();
-    usleep(TURN_TIME);
 }
 
 void game_client() {
@@ -364,12 +483,13 @@ void game_client() {
         pthread_t keyboardListener;
         pthread_create(&keyboardListener, NULL, key_listener, NULL);
         while (this_client.connected) {
+            if (recv(this_client.network_socket, this_client.buffer, 2, 0) <= 0) {
+                leave_game();
+            }
             send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-            get_map();
+            this_client.request[0] = WAIT;
             get_info();
             refresh();
-            this_client.request[0] = WAIT;
-            usleep(TURN_TIME);
         }
 
         pthread_join(keyboardListener, NULL);

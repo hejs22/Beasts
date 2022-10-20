@@ -17,6 +17,7 @@ struct ServerInfo {
 } server;
 
 struct data_transfer {
+    char map[PLAYER_POV][PLAYER_POV];
     int pos_X;
     int pos_Y;
     int coins_saved;
@@ -27,8 +28,8 @@ struct data_transfer {
     int camp_y;
 };
 
-void send_map(struct Player *player);
 void send_data(struct Player *player);
+void send_map(struct Beast *beast);
 int is_position_valid(int row, int col);
 void disconnect_socket(int);
 void init_ui();
