@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
 #include <time.h>
@@ -43,7 +44,7 @@ void init_server() {
     else printf("Error while setting up listen().\n");
 
     server.pid = getpid();
-    sprintf(server.message, "%lu", server.pid);
+    sprintf(server.message, "%d", server.pid);
     server.round = 0;
     world.active_players = 0;
     world.active_beasts = 0;
@@ -78,7 +79,7 @@ void init_ui() {
 
 
 int is_open(int socket) {
-    long res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
+    int res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
     if (res != 0) return 1;
     return 0;
 }
@@ -135,6 +136,9 @@ void *client_server_connection_handler(void *arg) {
             connected = 0;
         }
 
+        send_data(player);
+        mvprintw(0, 0, "Map sent to player: %c, round: %d", player->avatar, server.round);
+
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
         if (bytes_received > 0) {
             enum COMMAND request = (enum COMMAND) buffer[0];
@@ -142,6 +146,7 @@ void *client_server_connection_handler(void *arg) {
 
             switch (request) {
                 case MOVE:
+                    //send(player->socket, "OK", 2, 0);
                     switch (parameter) {
                         case UP:
                             player->command = MOVE;
@@ -165,6 +170,8 @@ void *client_server_connection_handler(void *arg) {
                     break;
                 case WAIT:
                     break;
+                case GET_MAP:
+                    break;
                 case QUIT:
                     disconnect_socket(player->socket);
                     deletePlayer(player);
@@ -174,15 +181,15 @@ void *client_server_connection_handler(void *arg) {
                     break;
             }
 
-
             if (player->bush) {
                 player->command = WAIT;
                 player->bush = 0;
             }
 
-            send_data(player);
+            run_orders(player);
             buffer[0] = WAIT;
         }
+        usleep(TURN_TIME);
     }
     pthread_exit(NULL);
 }
@@ -238,11 +245,7 @@ void *beasts_connection_handler(void *arg) {
                 world.beasts[buffer[0]]->command = WAIT;
                 world.beasts[buffer[0]]->bush = 0;
             }
-
-          //  TODO Decide whether to send small map to every beast OR send whole map to beasts manager
-          //  send_map(world.beasts[buffer[0]]);
         }
-        usleep(TURN_TIME);
     }
 
     pthread_exit(NULL);
@@ -294,6 +297,7 @@ void *listen_for_clients(void *arg) {
 
 // DATA TRANSFER ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 void send_data(struct Player *player) {
     struct data_transfer data;
 
@@ -324,6 +328,7 @@ void send_data(struct Player *player) {
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void run_orders(struct Player *player) {
+    char buffer[1024];
     if (is_open(player->socket)) {
         switch (player->command) {
             case MOVE:
@@ -337,6 +342,8 @@ void run_orders(struct Player *player) {
         }
     }
     player->command = WAIT;
+    send_data(player);
+    recv(player->socket, buffer, sizeof(buffer), 0);
 }
 
 void run_orders_beast(struct Beast *beast) {
@@ -428,22 +435,20 @@ void *game(void *arg) {
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
     while (server.up) {
+        usleep(TURN_TIME);
+        server.round++;
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
-                send(world.players[i]->socket, "OK", 2, 0);
-                run_orders(world.players[i]);
+               //run_orders(world.players[i]);
             }
         }
         for (int i = 0; i < MAX_BEASTS; i++) {
             if (world.beasts[i] != NULL) {
-                send(server.beast_client, "OK", 2, 0);
                 run_orders_beast(world.beasts[i]);
             }
         }
-        update_info();
         refresh();
-        server.round++;
-        usleep(TURN_TIME);
+        update_info();
     }
 
     pthread_exit(NULL);
@@ -457,6 +462,7 @@ int main() { // server application
     pthread_create(&playingThread, NULL, game, NULL);
 
     while (server.up) {
+        usleep(TURN_TIME);
         pthread_create(&listeningThread, NULL, listen_for_clients, NULL);
         pthread_join(listeningThread, NULL);
     }

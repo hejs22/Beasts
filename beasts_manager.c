@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
 #include <time.h>
@@ -59,7 +60,7 @@ void estabilish_connection() {
 
     clear();
     printf("Connection estabilished. ");
-    this_client.server_pid = strtol(server_response, NULL, 10);
+    this_client.server_pid = atoi(server_response);
 
     this_client.amount_of_beasts = 0;
 }
@@ -96,16 +97,15 @@ void get_info() {
 
 void *handle_beast(void *arg) {
     int beast_id = *(int *) arg;
-    unsigned char request[3];
+    char request[3];
     request[0] = beast_id;
     request[1] = MOVE;
     while (this_client.connected) {
         printf("\nBeast %d is alive. ", beast_id);
         request[2] = rand() % 4;
-        recv(this_client.network_socket, this_client.buffer, 2, 0);
         send(this_client.network_socket, request, sizeof(request), 0);
+        usleep(TURN_TIME);
     }
-    pthread_exit(NULL);
 }
 
 void beast_manager() {

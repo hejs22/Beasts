@@ -1,14 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <unistd.h>
+#include <string.h>
 #include <ncurses.h>
+#include <pthread.h>
+#include <time.h>
 #include <locale.h>
 
 #include "config.h"
 #include "world.h"
 #include "server.h"
 #include "player.h"
+#include "beasts.h"
+
 
 void load_map() {  // loads map from txt file into global variable
     FILE *mapfile = fopen(MAP_FILENAME, "r");

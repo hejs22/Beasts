@@ -28,10 +28,11 @@ struct data_transfer {
     int camp_y;
 };
 
+void send_map(struct Player *player);
 void send_data(struct Player *player);
-void send_map(struct Beast *beast);
 int is_position_valid(int row, int col);
 void disconnect_socket(int);
 void init_ui();
+void run_orders(struct Player *);
 
 #endif //CLIENT_SERVER_H

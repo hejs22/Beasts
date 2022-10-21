@@ -20,7 +20,6 @@ struct client_socket {
     struct sockaddr_in server_address;
     char buffer[1024];
     char map[PLAYER_POV][PLAYER_POV];
-    char data[5];
     char request[2];
     int connected;
     pthread_t server_pid;
@@ -35,19 +34,6 @@ struct client_socket {
     int camp_x;
     int camp_y;
 } this_client;
-
-
-struct data_transfer {
-    char map[PLAYER_POV][PLAYER_POV];
-    int pos_X;
-    int pos_Y;
-    int coins_saved;
-    int coins_carried;
-    int deaths;
-    int round;
-    int camp_x;
-    int camp_y;
-};
 
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,7 +225,6 @@ void print_info_client() {
     mvprintw(7, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.coins_carried);
     mvprintw(8, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.coins_saved);
     mvprintw(9, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.deaths);
-
 }
 
 void init_ui_client() {
@@ -271,14 +256,29 @@ void init_ui_client() {
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct data_transfer {
+    char map[PLAYER_POV][PLAYER_POV];
+    int pos_X;
+    int pos_Y;
+    int coins_saved;
+    int coins_carried;
+    int deaths;
+    int round;
+    int camp_x;
+    int camp_y;
+};
+
 void get_info() {
+    //this_client.request[0] = GET_MAP;
+    //send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+
     struct data_transfer data;
     long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
 
     if (bytes_received <= 0) {
         leave_game();
     } else {
-        strcpy(*this_client.map, *data.map);
+        memcpy(this_client.map, data.map, sizeof(data.map));
         this_client.pos_row = data.pos_X;
         this_client.pos_col = data.pos_Y;
         this_client.deaths = data.deaths;
@@ -288,10 +288,11 @@ void get_info() {
         this_client.camp_x = data.camp_x;
         this_client.camp_y = data.camp_y;
 
+        mvprintw(0, 0, "Map received, round: %d", this_client.round);
         print_map_client();
         print_info_client();
     }
-
+    refresh();
 }
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -302,7 +303,6 @@ void *key_listener(void *arg) {
 
     while (this_client.connected) {
         int key = getch();
-
         switch (key) {
             case 'Q':
             case 'q':
@@ -335,6 +335,7 @@ void *key_listener(void *arg) {
 
     pthread_exit(NULL);
 }
+
 
 int is_not_obstacle(int row, int col) {
     row += (PLAYER_POV / 2);
@@ -379,12 +380,11 @@ enum DIRECTION scan_area() {
         }
     }
 
-
     if (dir == STOP) {
-       dir = rand() % 4;
+        dir = rand() % 4;
     }
 
-     switch(dir) {
+    switch(dir) {
         case UP:
             if (!(is_not_obstacle(-1, 0))) {
                 if (is_not_obstacle(1, 0)) {
@@ -449,17 +449,15 @@ enum DIRECTION scan_area() {
             break;
     }
 
-
     return dir;
 }
 
 void ai_client() {
+    get_info();
     this_client.request[1] = scan_area();
-    if (recv(this_client.network_socket, this_client.buffer, 2, 0) <= 0) {
-        leave_game();
-    }
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
     get_info();
+    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
 }
 
 void game_client() {
@@ -468,20 +466,17 @@ void game_client() {
         srand(time(0));
         while (this_client.connected) {
             ai_client();
-            refresh();
         }
 
     } else if (this_client.playertype == HUMAN) {
         pthread_t keyboardListener;
         pthread_create(&keyboardListener, NULL, key_listener, NULL);
         while (this_client.connected) {
-            if (recv(this_client.network_socket, this_client.buffer, 2, 0) <= 0) {
-                leave_game();
-            }
-            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-            this_client.request[0] = WAIT;
             get_info();
-            refresh();
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+            get_info();
+            this_client.request[0] = WAIT;
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
         }
 
         pthread_join(keyboardListener, NULL);
@@ -496,7 +491,6 @@ int main() { // client application
 
     init_ui_client();
     print_legend();
-    refresh();
     game_client();
     return 0;
 }
