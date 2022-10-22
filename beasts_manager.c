@@ -25,9 +25,8 @@ struct client_socket {
     int amount_of_beasts;
     pthread_t server_pid;
 
-    char maps[MAX_BEASTS][MAP_HEIGHT][MAP_WIDTH];
+    char maps[MAX_BEASTS][BEAST_POV][BEAST_POV];
 } this_client;
-
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -78,8 +77,7 @@ void leave_game() {
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void get_info() {
-    char map[PLAYER_POV][PLAYER_POV];
-    long bytes_received = recv(this_client.network_socket, map, sizeof(map), 0);
+    long bytes_received = recv(this_client.network_socket, this_client.maps, sizeof(this_client.maps), 0);
 
     if (bytes_received <= 0) {
         leave_game();
@@ -88,9 +86,9 @@ void get_info() {
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int is_not_obstacle(char map[PLAYER_POV][PLAYER_POV], int row, int col) {
-    row += (PLAYER_POV / 2);
-    col += (PLAYER_POV / 2);
+int is_not_obstacle(char map[BEAST_POV][BEAST_POV], int row, int col) {
+    row += (BEAST_POV / 2);
+    col += (BEAST_POV / 2);
     if ((map[row][col] == 'A') || (map[row][col] == 'X') || (map[row][col] == '*')) {
         return 0;
     }
@@ -102,11 +100,16 @@ int is_player(char c) {
     return 0;
 }
 
-enum DIRECTION find_path(char map[PLAYER_POV][PLAYER_POV]) {
-    int row = PLAYER_POV / 2;
-    int col = PLAYER_POV / 2;
+enum DIRECTION find_path(char map[BEAST_POV][BEAST_POV]) {
+    int row = BEAST_POV / 2;
+    int col = BEAST_POV / 2;
 
     enum DIRECTION dir = STOP;
+
+    // search for player in 5x5 area
+    // check where he is in relation to beast
+    // check if there are any obstacles in the way
+    // calculate direction to go
 
     if (is_player(map[row + 1][col])) {
         dir = DOWN;
@@ -119,18 +122,9 @@ enum DIRECTION find_path(char map[PLAYER_POV][PLAYER_POV]) {
     }
 
     if (dir == STOP) {
-        if (is_player(map[row + 2][col]) && is_not_obstacle(map, 1, 0)) {
-            dir = DOWN;
-        } else if (is_player(map[row - 2][col]) && is_not_obstacle(map, -1, 0)) {
-            dir = UP;
-        } else if (is_player(map[row][col + 2]) && is_not_obstacle(map, 0, 1)) {
-            dir = RIGHT;
-        } else if (is_player(map[row][col - 2]) && is_not_obstacle(map, 0, -1)) {
-            dir = LEFT;
-        }
-
-
+        dir = rand() % 4;
     }
+
     return dir;
 }
 
@@ -141,18 +135,12 @@ void *handle_beast(void *arg) {
         request[0] = beast_id;
         request[1] = MOVE;
 
-        char map[PLAYER_POV][PLAYER_POV];
-        long bytes_received = recv(this_client.network_socket, map, sizeof(map), 0);
+        char map[BEAST_POV][BEAST_POV];
+        memcpy(map, this_client.maps[beast_id], sizeof(this_client.maps[beast_id]));
 
-        if (bytes_received <= 0) {
-            leave_game();
-        }
-
-        printf("%d\t", beast_id);
         request[2] = find_path(map);
         send(this_client.network_socket, request, sizeof(request), 0);
-        printf("Orders sent\n");
-
+        get_info();
         usleep(TURN_TIME);
     }
 }
@@ -168,6 +156,9 @@ void handleSIGUSR1 () {
 
 void beast_manager() {
     while (this_client.connected) {
+        get_info();
+
+        printf("Map received\n");
         usleep(TURN_TIME);
     }
     leave_game();

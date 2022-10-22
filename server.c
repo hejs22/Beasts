@@ -194,19 +194,21 @@ void *client_server_connection_handler(void *arg) {
     pthread_exit(NULL);
 }
 
-void send_beasts_data(struct Beast *beast) {;
-    char map[PLAYER_POV][PLAYER_POV];
-    for (int row = 0; row < PLAYER_POV; row++) {
-        for (int col = 0; col < PLAYER_POV; col++) {
-            if (is_position_valid(row - (PLAYER_POV / 2) + beast->pos_row, col - (PLAYER_POV / 2) + beast->pos_col)) {
-                map[row][col] = world.map[row - (PLAYER_POV / 2) + beast->pos_row][col - (PLAYER_POV / 2) + beast->pos_col];
-            }
-            else {
-                map[row][col] = 'X';
+void send_beasts_data() {
+    for (int i = 0; i < world.active_beasts; i++) {
+        char map[BEAST_POV][BEAST_POV];
+        for (int row = 0; row < BEAST_POV; row++) {
+            for (int col = 0; col < BEAST_POV; col++) {
+                if (is_position_valid(row - (BEAST_POV / 2) + world.beasts[i]->pos_row, col - (BEAST_POV / 2) + world.beasts[i]->pos_col)) {
+                    map[row][col] = world.map[row - (BEAST_POV / 2) + world.beasts[i]->pos_row][col - (BEAST_POV / 2) + world.beasts[i]->pos_col];
+                }
+                else {
+                    map[row][col] = 'X';
+                }
             }
         }
+        send(server.beast_client, map, sizeof(map), 0);
     }
-    send(server.beast_client, map, sizeof(map), 0);
 }
 
 void *beasts_connection_handler(void *arg) {
@@ -215,11 +217,10 @@ void *beasts_connection_handler(void *arg) {
     char buffer[1024];
 
     while (connected) {
-
+        send_beasts_data();
         for (int i = 0; i < world.active_beasts; i++) {
-
-            send_beasts_data(world.beasts[buffer[0]]);
             long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
+            send_beasts_data();
             if (bytes_received <= 0) {
                 connected = 0;
             }

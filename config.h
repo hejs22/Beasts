@@ -13,13 +13,14 @@ struct type_and_pid {
 };
 
 #define MAX_CLIENTS 4
-#define MAX_BEASTS 4
+#define MAX_BEASTS 8
 #define TREASURES_AMOUNT 50
 #define BUSHES_AMOUNT 120
 #define MAP_HEIGHT 28
 #define MAP_WIDTH 86
 #define TURN_TIME 350000
 #define PLAYER_POV 15
+#define BEAST_POV 5
 #define INFO_POS_Y (MAP_HEIGHT + 2)
 #define INFO_POS_X 5
 #define CLIENT_INFO_POS_Y (PLAYER_POV + 5)
