@@ -11,12 +11,13 @@ struct ServerInfo {
     int beast_client;
     int number_of_clients;
     int up;
+    int beasts_pid;
     int round;
     char message[256];
     char buffer[1024];
 } server;
 
-struct data_transfer {
+struct player_data_transfer {
     char map[PLAYER_POV][PLAYER_POV];
     int pos_X;
     int pos_Y;
@@ -26,6 +27,13 @@ struct data_transfer {
     int round;
     int camp_x;
     int camp_y;
+};
+
+struct beasts_data_transfer {
+    char map[MAP_HEIGHT][MAP_WIDTH];
+    int pos_X[MAX_BEASTS];
+    int pos_Y[MAX_BEASTS];
+    enum COMMAND command;
 };
 
 void send_map(struct Player *player);

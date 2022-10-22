@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <locale.h>
+#include <signal.h>
 
 #include "config.h"
 #include "world.h"
@@ -105,8 +106,7 @@ void *client_server_connection_handler(void *arg) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == socket) {
                 player = create_player(socket);
-                recv(socket, buffer, sizeof(buffer), 0);
-                player->pid = atoi(buffer);
+                player->pid = 0;
                 player->avatar = i + '1';
                 world.players[i] = player;
                 world.active_players++;
@@ -186,12 +186,25 @@ void *client_server_connection_handler(void *arg) {
                 player->bush = 0;
             }
 
-            run_orders(player);
-            buffer[0] = WAIT;
+            send_data(player);
+            recv(player->socket, buffer, sizeof(buffer), 0);
         }
         usleep(TURN_TIME);
     }
     pthread_exit(NULL);
+}
+
+void send_beasts_data() {
+    struct beasts_data_transfer data;
+    memcpy(data.map, world.map, sizeof(world.map));
+    for (int i = 0; i < world.active_beasts; i++) {
+        if (world.beasts[i] != NULL) {
+            data.pos_X[i] = world.beasts[i]->pos_row;
+            data.pos_Y[i] = world.beasts[i]->pos_col;
+        }
+    }
+    data.command = WAIT;
+    send(server.beast_client, &data, sizeof(data), 0);
 }
 
 void *beasts_connection_handler(void *arg) {
@@ -200,30 +213,36 @@ void *beasts_connection_handler(void *arg) {
     char buffer[1024];
 
     while (connected) {
+
+        send_beasts_data();
+        long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            connected = 0;
+        }
+
         for (int i = 0; i < world.active_beasts; i++) {
-            long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-            if ((bytes_received > 0) && (world.beasts[i] != NULL)) {
-                enum COMMAND request = (enum COMMAND) buffer[1];
-                int parameter = (int) buffer[2];
+
+                enum COMMAND request = (enum COMMAND) buffer[1 + i * 3];
+                int parameter = (int) buffer[2 + i * 3];
 
                 switch (request) {
                     case MOVE:
-                        world.beasts[buffer[0]]->command = MOVE;
+                        world.beasts[buffer[0 + i * 3]]->command = MOVE;
                         switch (parameter) {
                             case UP:
-                                world.beasts[buffer[0]]->argument = UP;
+                                world.beasts[buffer[0 + i * 3]]->argument = UP;
                                 break;
                             case DOWN:
-                                world.beasts[buffer[0]]->argument = DOWN;
+                                world.beasts[buffer[0 + i * 3]]->argument = DOWN;
                                 break;
                             case LEFT:
-                                world.beasts[buffer[0]]->argument = LEFT;
+                                world.beasts[buffer[0 + i * 3]]->argument = LEFT;
                                 break;
                             case RIGHT:
-                                world.beasts[buffer[0]]->argument = RIGHT;
+                                world.beasts[buffer[0 + i * 3]]->argument = RIGHT;
                                 break;
                             default:
-                                world.beasts[buffer[0]]->argument = STOP;
+                                world.beasts[buffer[0 + i * 3]]->argument = STOP;
                                 break;
                         }
                         break;
@@ -236,16 +255,15 @@ void *beasts_connection_handler(void *arg) {
                     default:
                         break;
                 }
-                buffer[1] = WAIT;
-            } else {
-                connected = 0;
-            }
+                buffer[1 + i * 3] = WAIT;
 
-            if (world.beasts[buffer[0]]->bush) {
-                world.beasts[buffer[0]]->command = WAIT;
-                world.beasts[buffer[0]]->bush = 0;
+            if (world.beasts[buffer[0 + i * 3]]->bush) {
+                world.beasts[buffer[0 + i * 3]]->command = WAIT;
+                world.beasts[buffer[0 + i * 3]]->bush = 0;
             }
         }
+
+        send_beasts_data();
     }
 
     pthread_exit(NULL);
@@ -255,9 +273,10 @@ void *listen_for_clients(void *arg) {
     int client_socket = accept(server.socket, NULL, NULL);
 
     send(client_socket, server.message, sizeof(server.message), 0);
-    char c;
-    recv(client_socket, &c, sizeof(c), 0);
-    if (c == '1') { // this is player's client
+
+    struct type_and_pid pid;
+    recv(client_socket, &pid, sizeof(pid), 0);
+    if (pid.type == '1') { // this is player's client
 
         // check for empty client slots
         int flag = 1, i;
@@ -283,7 +302,7 @@ void *listen_for_clients(void *arg) {
     else { // this is beast client
         if (server.beast_client == -1) {
             server.beast_client = client_socket;
-
+            server.beasts_pid = pid.pid;
             pthread_t handler;
             pthread_create(&handler, NULL, beasts_connection_handler, (void *) &server.beast_client);
             pthread_exit(NULL);
@@ -299,7 +318,7 @@ void *listen_for_clients(void *arg) {
 
 
 void send_data(struct Player *player) {
-    struct data_transfer data;
+    struct player_data_transfer data;
 
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
@@ -342,8 +361,6 @@ void run_orders(struct Player *player) {
         }
     }
     player->command = WAIT;
-    send_data(player);
-    recv(player->socket, buffer, sizeof(buffer), 0);
 }
 
 void run_orders_beast(struct Beast *beast) {
@@ -372,9 +389,7 @@ void end_game() {
 
 void spawn_beast() {
     if ((world.active_beasts < MAX_BEASTS) && (server.beast_client != -1)) {
-        char buffer[1024];
-        buffer[0] = SPAWN_BEAST;
-        send(server.beast_client, buffer, sizeof(buffer), 0);
+        kill(server.beasts_pid, SIGUSR1);
         for (int i = 0; i < MAX_BEASTS; i++) {
             if (world.beasts[i] == NULL) {
                 world.beasts[i] = create_beast();
@@ -439,7 +454,7 @@ void *game(void *arg) {
         server.round++;
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
-               //run_orders(world.players[i]);
+               run_orders(world.players[i]);
             }
         }
         for (int i = 0; i < MAX_BEASTS; i++) {
@@ -470,4 +485,4 @@ int main() { // server application
 }
 
 
-// TODO allow beasts to chase players, allow players to run from beasts, implement beast manager disconnection function, check why all player pids are 0, check why clients terminates instantly after server dies
+// TODO allow beasts to chase players, implement beast manager disconnection function, check why all player pids are 0, parse beast's manager data

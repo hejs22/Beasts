@@ -60,12 +60,13 @@ void estabilish_connection() {
 
     this_client.connected = 1;
     char server_response[256];
-    recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
-    send(this_client.network_socket, "1", sizeof("1"), 0);
 
-    int pid = getpid();
-    sprintf(this_client.buffer, "%d", pid);
-    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
+    struct type_and_pid pid;
+    pid.pid = getpid();
+    pid.type = '1';
+
+    recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+    send(this_client.network_socket, &pid, sizeof(pid), 0);
 
     clear();
     mvprintw(0, 0, "Connection estabilished. ");
@@ -256,7 +257,7 @@ void init_ui_client() {
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct data_transfer {
+struct player_data_transfer {
     char map[PLAYER_POV][PLAYER_POV];
     int pos_X;
     int pos_Y;
@@ -272,7 +273,7 @@ void get_info() {
     //this_client.request[0] = GET_MAP;
     //send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
 
-    struct data_transfer data;
+    struct player_data_transfer data;
     long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
 
     if (bytes_received <= 0) {
@@ -382,71 +383,6 @@ enum DIRECTION scan_area() {
 
     if (dir == STOP) {
         dir = rand() % 4;
-    }
-
-    switch(dir) {
-        case UP:
-            if (!(is_not_obstacle(-1, 0))) {
-                if (is_not_obstacle(1, 0)) {
-                    dir = DOWN;
-                } else {
-                    if (is_not_obstacle(0, 1)) {
-                        dir = RIGHT;
-                    } else {
-                        if (is_not_obstacle(0, -1)) {
-                            dir = LEFT;
-                        }
-                    }
-                }
-            }
-            break;
-        case DOWN:
-            if (!(is_not_obstacle(1, 0))) {
-                if (is_not_obstacle(-1, 0)) {
-                    dir = UP;
-                } else {
-                    if (is_not_obstacle(0, 1)) {
-                        dir = RIGHT;
-                    } else {
-                        if (is_not_obstacle(0, -1)) {
-                            dir = LEFT;
-                        }
-                    }
-                }
-            }
-            break;
-        case LEFT:
-            if (!(is_not_obstacle(0, 1))) {
-                if (is_not_obstacle(0, -1)) {
-                    dir = RIGHT;
-                } else {
-                    if (is_not_obstacle(-1, 0)) {
-                        dir = UP;
-                    } else {
-                        if (is_not_obstacle(1, 0)) {
-                            dir = DOWN;
-                        }
-                    }
-                }
-            }
-            break;
-        case RIGHT:
-            if (!(is_not_obstacle(0, -1))) {
-                if (is_not_obstacle(0, 1)) {
-                    dir = LEFT;
-                } else {
-                    if (is_not_obstacle(-1, 0)) {
-                        dir = UP;
-                    } else {
-                        if (is_not_obstacle(1, 0)) {
-                            dir = DOWN;
-                        }
-                    }
-                }
-            }
-            break;
-        default:
-            break;
     }
 
     return dir;
