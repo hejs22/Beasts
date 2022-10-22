@@ -25,17 +25,9 @@ struct client_socket {
     int amount_of_beasts;
     pthread_t server_pid;
 
-    char map[MAP_HEIGHT][MAP_WIDTH];
-    int pos_row[MAX_BEASTS];
-    int pos_col[MAX_BEASTS];
+    char maps[MAX_BEASTS][MAP_HEIGHT][MAP_WIDTH];
 } this_client;
 
-struct beasts_data_transfer {
-    char map[MAP_HEIGHT][MAP_WIDTH];
-    int pos_X[MAX_BEASTS];
-    int pos_Y[MAX_BEASTS];
-    enum COMMAND command;
-};
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -85,36 +77,82 @@ void leave_game() {
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct player_data_transfer {
-    char map[MAP_HEIGHT][MAP_WIDTH];
-    int pos_X[MAX_BEASTS];
-    int pos_Y[MAX_BEASTS];
-};
-
 void get_info() {
-    struct player_data_transfer data;
-    long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
+    char map[PLAYER_POV][PLAYER_POV];
+    long bytes_received = recv(this_client.network_socket, map, sizeof(map), 0);
 
     if (bytes_received <= 0) {
         leave_game();
-    }
-
-    memcpy(this_client.map, data.map, sizeof(data.map));
-    for (int i = 0; i < this_client.amount_of_beasts; i++) {
-        this_client.pos_row[i] = data.pos_X[i];
-        this_client.pos_col[i] = data.pos_Y[i];
     }
 }
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+int is_not_obstacle(char map[PLAYER_POV][PLAYER_POV], int row, int col) {
+    row += (PLAYER_POV / 2);
+    col += (PLAYER_POV / 2);
+    if ((map[row][col] == 'A') || (map[row][col] == 'X') || (map[row][col] == '*')) {
+        return 0;
+    }
+    return 1;
+}
+
+int is_player(char c) {
+    if ((c >= '1') && (c <= '4')) return 1;
+    return 0;
+}
+
+enum DIRECTION find_path(char map[PLAYER_POV][PLAYER_POV]) {
+    int row = PLAYER_POV / 2;
+    int col = PLAYER_POV / 2;
+
+    enum DIRECTION dir = STOP;
+
+    if (is_player(map[row + 1][col])) {
+        dir = DOWN;
+    } else if (is_player(map[row - 1][col])) {
+        dir = UP;
+    } else if (is_player(map[row][col + 1])) {
+        dir = RIGHT;
+    } else if (is_player(map[row][col - 1])) {
+        dir = LEFT;
+    }
+
+    if (dir == STOP) {
+        if (is_player(map[row + 2][col]) && is_not_obstacle(map, 1, 0)) {
+            dir = DOWN;
+        } else if (is_player(map[row - 2][col]) && is_not_obstacle(map, -1, 0)) {
+            dir = UP;
+        } else if (is_player(map[row][col + 2]) && is_not_obstacle(map, 0, 1)) {
+            dir = RIGHT;
+        } else if (is_player(map[row][col - 2]) && is_not_obstacle(map, 0, -1)) {
+            dir = LEFT;
+        }
+
+
+    }
+    return dir;
+}
+
 void *handle_beast(void *arg) {
     int beast_id = *(int *) arg;
-    this_client.request[0 + beast_id * 3] = beast_id;
-    this_client.request[1 + beast_id * 3] = MOVE;
+    char request[3];
     while (this_client.connected) {
+        request[0] = beast_id;
+        request[1] = MOVE;
+
+        char map[PLAYER_POV][PLAYER_POV];
+        long bytes_received = recv(this_client.network_socket, map, sizeof(map), 0);
+
+        if (bytes_received <= 0) {
+            leave_game();
+        }
+
         printf("%d\t", beast_id);
-        this_client.request[2 + beast_id * 3] = rand() % 4;
+        request[2] = find_path(map);
+        send(this_client.network_socket, request, sizeof(request), 0);
+        printf("Orders sent\n");
+
         usleep(TURN_TIME);
     }
 }
@@ -129,16 +167,8 @@ void handleSIGUSR1 () {
 }
 
 void beast_manager() {
-    this_client.request[0] = MOVE;
-    srand(time(0));
     while (this_client.connected) {
-        struct beasts_data_transfer data;
-        long bytes_received = recv(this_client.network_socket, &data, sizeof(data), 0);
-        if (bytes_received > 0) {
-            usleep(TURN_TIME);
-            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-            printf("Orders sent\n");
-        }
+        usleep(TURN_TIME);
     }
     leave_game();
 }
@@ -146,11 +176,7 @@ void beast_manager() {
 int main() { // client application
     client_configure();
     estabilish_connection();
-
-    // send data to server
-    int pid = getpid();
-    sprintf(this_client.buffer, "%d", pid);
-    send(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
+    srand(time(0));
 
     signal(SIGUSR1, handleSIGUSR1);
     beast_manager();

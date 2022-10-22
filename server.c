@@ -194,17 +194,19 @@ void *client_server_connection_handler(void *arg) {
     pthread_exit(NULL);
 }
 
-void send_beasts_data() {
-    struct beasts_data_transfer data;
-    memcpy(data.map, world.map, sizeof(world.map));
-    for (int i = 0; i < world.active_beasts; i++) {
-        if (world.beasts[i] != NULL) {
-            data.pos_X[i] = world.beasts[i]->pos_row;
-            data.pos_Y[i] = world.beasts[i]->pos_col;
+void send_beasts_data(struct Beast *beast) {;
+    char map[PLAYER_POV][PLAYER_POV];
+    for (int row = 0; row < PLAYER_POV; row++) {
+        for (int col = 0; col < PLAYER_POV; col++) {
+            if (is_position_valid(row - (PLAYER_POV / 2) + beast->pos_row, col - (PLAYER_POV / 2) + beast->pos_col)) {
+                map[row][col] = world.map[row - (PLAYER_POV / 2) + beast->pos_row][col - (PLAYER_POV / 2) + beast->pos_col];
+            }
+            else {
+                map[row][col] = 'X';
+            }
         }
     }
-    data.command = WAIT;
-    send(server.beast_client, &data, sizeof(data), 0);
+    send(server.beast_client, map, sizeof(map), 0);
 }
 
 void *beasts_connection_handler(void *arg) {
@@ -214,56 +216,54 @@ void *beasts_connection_handler(void *arg) {
 
     while (connected) {
 
-        send_beasts_data();
-        long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0) {
-            connected = 0;
-        }
-
         for (int i = 0; i < world.active_beasts; i++) {
 
-                enum COMMAND request = (enum COMMAND) buffer[1 + i * 3];
-                int parameter = (int) buffer[2 + i * 3];
+            send_beasts_data(world.beasts[buffer[0]]);
+            long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) {
+                connected = 0;
+            }
 
-                switch (request) {
-                    case MOVE:
-                        world.beasts[buffer[0 + i * 3]]->command = MOVE;
-                        switch (parameter) {
-                            case UP:
-                                world.beasts[buffer[0 + i * 3]]->argument = UP;
-                                break;
-                            case DOWN:
-                                world.beasts[buffer[0 + i * 3]]->argument = DOWN;
-                                break;
-                            case LEFT:
-                                world.beasts[buffer[0 + i * 3]]->argument = LEFT;
-                                break;
-                            case RIGHT:
-                                world.beasts[buffer[0 + i * 3]]->argument = RIGHT;
-                                break;
-                            default:
-                                world.beasts[buffer[0 + i * 3]]->argument = STOP;
-                                break;
-                        }
-                        break;
-                    case WAIT:
-                        break;
-                    case QUIT:
-                        disconnect_socket(server.beast_client);
-                        connected = 0;
-                        break;
-                    default:
-                        break;
-                }
-                buffer[1 + i * 3] = WAIT;
+            enum COMMAND request = (enum COMMAND) buffer[1];
+            int parameter = (int) buffer[2];
 
-            if (world.beasts[buffer[0 + i * 3]]->bush) {
-                world.beasts[buffer[0 + i * 3]]->command = WAIT;
-                world.beasts[buffer[0 + i * 3]]->bush = 0;
+            switch (request) {
+                case MOVE:
+                    world.beasts[buffer[0]]->command = MOVE;
+                    switch (parameter) {
+                        case UP:
+                            world.beasts[buffer[0]]->argument = UP;
+                            break;
+                        case DOWN:
+                            world.beasts[buffer[0]]->argument = DOWN;
+                            break;
+                        case LEFT:
+                            world.beasts[buffer[0]]->argument = LEFT;
+                            break;
+                        case RIGHT:
+                            world.beasts[buffer[0]]->argument = RIGHT;
+                            break;
+                        default:
+                            world.beasts[buffer[0]]->argument = STOP;
+                            break;
+                    }
+                    break;
+                case WAIT:
+                    break;
+                case QUIT:
+                    disconnect_socket(server.beast_client);
+                    connected = 0;
+                    break;
+                default:
+                    break;
+            }
+            buffer[1] = WAIT;
+
+            if (world.beasts[buffer[0]]->bush) {
+                world.beasts[buffer[0]]->command = WAIT;
+                world.beasts[buffer[0]]->bush = 0;
             }
         }
-
-        send_beasts_data();
     }
 
     pthread_exit(NULL);
@@ -272,10 +272,10 @@ void *beasts_connection_handler(void *arg) {
 void *listen_for_clients(void *arg) {
     int client_socket = accept(server.socket, NULL, NULL);
 
-    send(client_socket, server.message, sizeof(server.message), 0);
-
     struct type_and_pid pid;
+    send(client_socket, server.message, sizeof(server.message), 0);
     recv(client_socket, &pid, sizeof(pid), 0);
+
     if (pid.type == '1') { // this is player's client
 
         // check for empty client slots
@@ -462,8 +462,9 @@ void *game(void *arg) {
                 run_orders_beast(world.beasts[i]);
             }
         }
-        refresh();
+
         update_info();
+        refresh();
     }
 
     pthread_exit(NULL);

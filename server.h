@@ -29,13 +29,6 @@ struct player_data_transfer {
     int camp_y;
 };
 
-struct beasts_data_transfer {
-    char map[MAP_HEIGHT][MAP_WIDTH];
-    int pos_X[MAX_BEASTS];
-    int pos_Y[MAX_BEASTS];
-    enum COMMAND command;
-};
-
 void send_map(struct Player *player);
 void send_data(struct Player *player);
 int is_position_valid(int row, int col);
