@@ -28,6 +28,11 @@ struct client_socket {
     char maps[MAX_BEASTS][BEAST_POV][BEAST_POV];
 } this_client;
 
+struct point {
+    int x;
+    int y;
+};
+
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
 void client_configure() {
@@ -100,32 +105,67 @@ int is_player(char c) {
     return 0;
 }
 
+struct point scan_area(char map[BEAST_POV][BEAST_POV]) {
+    int row = BEAST_POV / 2;
+    int col = BEAST_POV / 2;
+
+    struct point p;
+    p.x = 0; p.y = 0;
+    int min = 999;
+    for (int x = -(PLAYER_POV / 2); x < PLAYER_POV / 2; x++) {
+        for (int y = -(PLAYER_POV / 2); y < PLAYER_POV / 2; y++) {
+            if(is_player(map[row + x][col + y])) {
+                int distance = abs(x) + abs(y);
+                if (distance < min) {
+                    min = distance;
+                    p.x = x;
+                    p.y = y;
+                }
+            }
+        }
+    }
+
+    return p;
+}
+
 enum DIRECTION find_path(char map[BEAST_POV][BEAST_POV]) {
     int row = BEAST_POV / 2;
     int col = BEAST_POV / 2;
 
-    enum DIRECTION dir = STOP;
+    struct point player_location = scan_area(map);
 
-    // search for player in 5x5 area
-    // check where he is in relation to beast
-    // check if there are any obstacles in the way
-    // calculate direction to go
+    enum DIRECTION horizontal_dir = STOP, vertical_dir = STOP;
 
-    if (is_player(map[row + 1][col])) {
-        dir = DOWN;
-    } else if (is_player(map[row - 1][col])) {
-        dir = UP;
-    } else if (is_player(map[row][col + 1])) {
-        dir = RIGHT;
-    } else if (is_player(map[row][col - 1])) {
-        dir = LEFT;
+    if ((player_location.x > 0)) {
+        vertical_dir = DOWN;
+    } else if (player_location.x < 0) {
+        vertical_dir = UP;
     }
 
-    if (dir == STOP) {
-        dir = rand() % 4;
+    if (player_location.y > 0) {
+        horizontal_dir = RIGHT;
+    } else if (player_location.y < 0) {
+        horizontal_dir = LEFT;
     }
 
-    return dir;
+
+    if ((horizontal_dir == STOP) && (vertical_dir != STOP)) {
+        return vertical_dir;
+    }
+
+    if ((horizontal_dir != STOP) && (vertical_dir == STOP)) {
+        return horizontal_dir;
+    }
+
+    if ((horizontal_dir != STOP) && (vertical_dir != STOP)) {
+        if ((rand() % 2) == 1) {
+            return horizontal_dir;
+        } else {
+            return vertical_dir;
+        }
+    }
+
+    return rand() % 4;
 }
 
 void *handle_beast(void *arg) {
@@ -141,6 +181,12 @@ void *handle_beast(void *arg) {
         request[2] = find_path(map);
         send(this_client.network_socket, request, sizeof(request), 0);
         get_info();
+
+        if (request[2] == STOP) {
+            printf("Beast %d waits.\n", beast_id);
+        } else {
+            printf("Beast %d chases. \n", beast_id);
+        }
         usleep(TURN_TIME);
     }
 }
@@ -158,7 +204,7 @@ void beast_manager() {
     while (this_client.connected) {
         get_info();
 
-        printf("Map received\n");
+        //printf("Map received\n");
         usleep(TURN_TIME);
     }
     leave_game();
