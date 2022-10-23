@@ -28,10 +28,7 @@ struct client_socket {
     char maps[MAX_BEASTS][BEAST_POV][BEAST_POV];
 } this_client;
 
-struct point {
-    int x;
-    int y;
-};
+pthread_mutex_t lock;
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -91,10 +88,8 @@ void get_info() {
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int is_not_obstacle(char map[BEAST_POV][BEAST_POV], int row, int col) {
-    row += (BEAST_POV / 2);
-    col += (BEAST_POV / 2);
-    if ((map[row][col] == 'A') || (map[row][col] == 'X') || (map[row][col] == '*')) {
+int is_not_obstacle(char c) {
+    if ((c == 'A') || (c == 'X') || (c == '*')) {
         return 0;
     }
     return 1;
@@ -112,9 +107,9 @@ struct point scan_area(char map[BEAST_POV][BEAST_POV]) {
     struct point p;
     p.x = 0; p.y = 0;
     int min = 999;
-    for (int x = -(PLAYER_POV / 2); x < PLAYER_POV / 2; x++) {
-        for (int y = -(PLAYER_POV / 2); y < PLAYER_POV / 2; y++) {
-            if(is_player(map[row + x][col + y])) {
+    for (int x = -(BEAST_POV / 2); x < BEAST_POV / 2; x++) {
+        for (int y = -(BEAST_POV / 2); y < BEAST_POV / 2; y++) {
+            if (is_player(map[row + x][col + y])) {
                 int distance = abs(x) + abs(y);
                 if (distance < min) {
                     min = distance;
@@ -129,22 +124,20 @@ struct point scan_area(char map[BEAST_POV][BEAST_POV]) {
 }
 
 enum DIRECTION find_path(char map[BEAST_POV][BEAST_POV]) {
-    int row = BEAST_POV / 2;
-    int col = BEAST_POV / 2;
 
     struct point player_location = scan_area(map);
 
     enum DIRECTION horizontal_dir = STOP, vertical_dir = STOP;
 
-    if ((player_location.x > 0)) {
+    if ((player_location.x > 0) && (is_not_obstacle(map[BEAST_POV/2 + 1][BEAST_POV/2]))) {
         vertical_dir = DOWN;
-    } else if (player_location.x < 0) {
+    } else if ((player_location.x < 0) && (is_not_obstacle(map[BEAST_POV/2 - 1][BEAST_POV/2]))) {
         vertical_dir = UP;
     }
 
-    if (player_location.y > 0) {
+    if ((player_location.y > 0) && (is_not_obstacle(map[BEAST_POV/2][BEAST_POV/2 + 1]))) {
         horizontal_dir = RIGHT;
-    } else if (player_location.y < 0) {
+    } else if ((player_location.y < 0) && (is_not_obstacle(map[BEAST_POV/2][BEAST_POV/2 - 1]))) {
         horizontal_dir = LEFT;
     }
 
@@ -172,6 +165,8 @@ void *handle_beast(void *arg) {
     int beast_id = *(int *) arg;
     char request[3];
     while (this_client.connected) {
+        pthread_mutex_lock(&lock);
+
         request[0] = beast_id;
         request[1] = MOVE;
 
@@ -180,7 +175,7 @@ void *handle_beast(void *arg) {
 
         request[2] = find_path(map);
         send(this_client.network_socket, request, sizeof(request), 0);
-        get_info();
+        pthread_mutex_unlock(&lock);
 
         if (request[2] == STOP) {
             printf("Beast %d waits.\n", beast_id);

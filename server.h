@@ -29,10 +29,6 @@ struct player_data_transfer {
     int camp_y;
 };
 
-struct map {
-    char map[BEAST_POV][BEAST_POV];
-};
-
 void send_map(struct Player *player);
 void send_data(struct Player *player);
 int is_position_valid(int row, int col);

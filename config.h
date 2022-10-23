@@ -12,6 +12,11 @@ struct type_and_pid {
     int socket;
 };
 
+struct point {
+    int x;
+    int y;
+};
+
 #define MAX_CLIENTS 4
 #define MAX_BEASTS 8
 #define TREASURES_AMOUNT 50

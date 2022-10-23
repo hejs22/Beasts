@@ -18,6 +18,7 @@
 #include "beasts.h"
 
 pthread_t listeningThread, playingThread, keyListenerThread;
+pthread_mutex_t lock;
 
 // SERVER INITIALIZATION ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -122,6 +123,7 @@ void *client_server_connection_handler(void *arg) {
     }
 
     while (connected) {
+        pthread_mutex_lock(&lock);
         // if client isn't connected, disconnect his socket and free his Player structure
         if (!is_open(socket)) {
             for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -129,6 +131,7 @@ void *client_server_connection_handler(void *arg) {
                     if (world.players[i]->socket == socket) {
                         disconnect_socket(socket);
                         deletePlayer(world.players[i]);
+                        pthread_mutex_unlock(&lock);
                         break;
                     }
                 }
@@ -176,6 +179,7 @@ void *client_server_connection_handler(void *arg) {
                     disconnect_socket(player->socket);
                     deletePlayer(player);
                     connected = 0;
+                    pthread_mutex_unlock(&lock);
                     break;
                 default:
                     break;
@@ -189,6 +193,7 @@ void *client_server_connection_handler(void *arg) {
             send_data(player);
             recv(player->socket, buffer, sizeof(buffer), 0);
         }
+        pthread_mutex_unlock(&lock);
         usleep(TURN_TIME);
     }
     pthread_exit(NULL);
@@ -220,9 +225,11 @@ void *beasts_connection_handler(void *arg) {
         send_beasts_data();
         for (int i = 0; i < world.active_beasts; i++) {
             long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-            send_beasts_data();
+            pthread_mutex_lock(&lock);
             if (bytes_received <= 0) {
                 connected = 0;
+                pthread_mutex_unlock(&lock);
+                break;
             }
 
             enum COMMAND request = (enum COMMAND) buffer[1];
@@ -264,6 +271,7 @@ void *beasts_connection_handler(void *arg) {
                 world.beasts[buffer[0]]->command = WAIT;
                 world.beasts[buffer[0]]->bush = 0;
             }
+            pthread_mutex_unlock(&lock);
         }
     }
 
@@ -276,6 +284,7 @@ void *listen_for_clients(void *arg) {
     struct type_and_pid pid;
     send(client_socket, server.message, sizeof(server.message), 0);
     recv(client_socket, &pid, sizeof(pid), 0);
+    pthread_mutex_lock(&lock);
 
     if (pid.type == '1') { // this is player's client
 
@@ -290,13 +299,17 @@ void *listen_for_clients(void *arg) {
         }
         // if all slots are taken, disconnect socket and exit
         if (flag) {
+            send(client_socket, "ER", 2, 0);
             disconnect_socket(client_socket);
+            pthread_mutex_unlock(&lock);
             pthread_exit(NULL);
         }
 
         // create a handler thread for each connection and remember client's socket
+        send(client_socket, "OK", 2, 0);
         pthread_t handler;
         pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
+        pthread_mutex_unlock(&lock);
         pthread_exit(NULL);
 
     }
@@ -306,8 +319,10 @@ void *listen_for_clients(void *arg) {
             server.beasts_pid = pid.pid;
             pthread_t handler;
             pthread_create(&handler, NULL, beasts_connection_handler, (void *) &server.beast_client);
+            pthread_mutex_unlock(&lock);
             pthread_exit(NULL);
         } else {
+            pthread_mutex_unlock(&lock);
             disconnect_socket(client_socket);
             pthread_exit(NULL);
         }
@@ -406,6 +421,7 @@ void *key_listener(void *arg) {
 
     while (server.up) {
         unsigned char key = getch();
+        pthread_mutex_lock(&lock);
         switch (key) {
             case 'r':
             case 'R':
@@ -415,6 +431,7 @@ void *key_listener(void *arg) {
             case 'q':
                 key = '0';
                 server.up = 0;
+                pthread_mutex_lock(&lock);
                 end_game();
                 break;
             case 'c':
@@ -438,6 +455,7 @@ void *key_listener(void *arg) {
             default:
                 key = '0';
         }
+        pthread_mutex_unlock(&lock);
     }
 
     pthread_exit(NULL);
@@ -452,6 +470,7 @@ void *game(void *arg) {
 
     while (server.up) {
         usleep(TURN_TIME);
+        pthread_mutex_lock(&lock);
         server.round++;
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
@@ -466,6 +485,7 @@ void *game(void *arg) {
 
         update_info();
         refresh();
+        pthread_mutex_unlock(&lock);
     }
 
     pthread_exit(NULL);

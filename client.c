@@ -12,6 +12,7 @@
 
 #include "config.h"
 
+pthread_mutex_t lock;
 
 // DATA STRUCTURES //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -46,6 +47,23 @@ void client_configure() {
     this_client.server_address.sin_family = AF_INET;
     this_client.server_address.sin_port = htons(9002);
     this_client.server_address.sin_addr.s_addr = INADDR_ANY;
+
+    this_client.round = -1;
+}
+
+void leave_game() {
+    close(this_client.network_socket);
+    this_client.connected = 0;
+    clear();
+    attron(A_BOLD);
+    if (this_client.round == -1) {
+        mvprintw(2, 2, "Server is full. Press any key to continue...");
+    } else {
+        int score = this_client.coins_saved;
+        mvprintw(2, 2, "Game over, your score: %d. Press any key to continue...", score);
+    }
+    attroff(A_BOLD);
+    getch();
 }
 
 void estabilish_connection() {
@@ -65,26 +83,21 @@ void estabilish_connection() {
     pid.pid = getpid();
     pid.type = '1';
 
-    recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+    long res = recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+
+    if (res <= 0) {
+        leave_game();
+    }
+
     send(this_client.network_socket, &pid, sizeof(pid), 0);
+    res = recv(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
+    if ((res <= 0) || (this_client.buffer[0] == 'E')) {
+        leave_game();
+    }
 
     clear();
-    mvprintw(0, 0, "Connection estabilished. ");
     this_client.server_pid = atoi(server_response);
 }
-
-void leave_game() {
-    close(this_client.network_socket);
-    this_client.connected = 0;
-    clear();
-    attron(A_BOLD);
-    int score = this_client.coins_saved;
-    mvprintw(2, 2, "Game over, your score: %d. Press any key to continue...", score);
-    attroff(A_BOLD);
-    getch();
-}
-
-
 
 // USER GRAPHICAL INTERFACE ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -304,6 +317,7 @@ void *key_listener(void *arg) {
 
     while (this_client.connected) {
         int key = getch();
+        pthread_mutex_lock(&lock);
         switch (key) {
             case 'Q':
             case 'q':
@@ -332,6 +346,7 @@ void *key_listener(void *arg) {
             default:
                 break;
         }
+        pthread_mutex_unlock(&lock);
     }
 
     pthread_exit(NULL);
