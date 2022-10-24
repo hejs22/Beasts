@@ -24,6 +24,7 @@ int validMoveBeasts(int row, int col) {
 }
 
 void moveBeast(struct Beast *beast, enum DIRECTION dir) {
+    // checks if beast can move in desired connection, if so, changes it coordinates and handles collision
     if (beast == NULL) return;
 
     print_tile(beast->standing_at, beast->pos_row, beast->pos_col);
@@ -86,6 +87,8 @@ struct Beast *create_beast() {
 }
 
 void handle_collision_beast(struct Beast *beast, int row, int col) {
+    // checks multiple collision events and handles them
+
     if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') || (world.map[row][col] == '4')) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {

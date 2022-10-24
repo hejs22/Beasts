@@ -63,12 +63,12 @@ void print_map() {  // prints map on console based on world.map[][]
 }
 
 void print_initial_objects() {
+    // function runs at the beginning, creates bushes and coins in random places
     for (int i = 0; i < TREASURES_AMOUNT; i++) create_object(rand() % 3 + 1);
     for (int i = 0; i < BUSHES_AMOUNT; i++) create_object(BUSH);
 }
 
 void update_info() {
-
     mvprintw(INFO_POS_Y, INFO_POS_X + 80, "%d    ", server.round);
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -94,7 +94,7 @@ void update_info() {
     }
 }
 
-void print_info() {    // prints all additional info on console
+void print_info() {
     mvprintw(INFO_POS_Y, INFO_POS_X, "Server's PID: %d", server.pid);
     mvprintw(INFO_POS_Y, INFO_POS_X + 30, "Campsite's X/Y: %d/%d    ", world.campfire_row, world.campfire_col);
     mvprintw(INFO_POS_Y, INFO_POS_X + 65, "Round number: ");

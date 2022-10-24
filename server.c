@@ -41,7 +41,6 @@ void init_server() {
     // bind socket to specified IP and PORT
     bind(server.socket, (struct sockaddr *) &(server.address), sizeof(server.address));
 
-    // allow MAX_CLIENTS number of clients
     if (listen(server.socket, MAX_CLIENTS) == 0) printf("Listening...\n");
     else printf("Error while setting up listen().\n");
 
@@ -56,6 +55,7 @@ void init_server() {
 void init_ui() {
     initscr();
 
+    // create color pairs used in game
     if (has_colors() == TRUE) {
         start_color();
         init_pair(1, COLOR_WHITE, COLOR_BLUE); // Blue for players
@@ -81,12 +81,13 @@ void init_ui() {
 
 
 int is_open(int socket) {
-    int res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
+    long res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
     if (res != 0) return 1;
     return 0;
 }
 
 void disconnect_socket(int socket) {
+    // delete socket from sockets array and close it
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (server.clients[i] == socket) {
             server.clients[i] = -1;
@@ -100,35 +101,41 @@ void *client_server_connection_handler(void *arg) {
     int socket = *(int *) arg;
     int connected = 1;
     char buffer[1024];
-
     int flag = 0;
+
     if (is_open(socket)) {
         // check for empty slots, if any is found create player
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == socket) {
+                pthread_mutex_lock(&lock);
                 player = create_player(socket);
                 player->pid = 0;
                 player->avatar = i + '1';
                 world.players[i] = player;
                 world.active_players++;
                 flag = 1;
+                pthread_mutex_unlock(&lock);
                 break;
             }
         }
     }
+
+
     // if all slots are taken disconnect and exit
     if (flag == 0) {
         disconnect_socket(socket);
         pthread_exit(NULL);
     }
 
+
     while (connected) {
-        pthread_mutex_lock(&lock);
+
         // if client isn't connected, disconnect his socket and free his Player structure
         if (!is_open(socket)) {
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (world.players[i] != NULL) {
                     if (world.players[i]->socket == socket) {
+                        pthread_mutex_lock(&lock);
                         disconnect_socket(socket);
                         deletePlayer(world.players[i]);
                         pthread_mutex_unlock(&lock);
@@ -149,7 +156,6 @@ void *client_server_connection_handler(void *arg) {
 
             switch (request) {
                 case MOVE:
-                    //send(player->socket, "OK", 2, 0);
                     switch (parameter) {
                         case UP:
                             player->command = MOVE;
@@ -171,11 +177,8 @@ void *client_server_connection_handler(void *arg) {
                             break;
                     }
                     break;
-                case WAIT:
-                    break;
-                case GET_MAP:
-                    break;
                 case QUIT:
+                    pthread_mutex_lock(&lock);
                     disconnect_socket(player->socket);
                     deletePlayer(player);
                     connected = 0;
@@ -186,20 +189,23 @@ void *client_server_connection_handler(void *arg) {
             }
 
             if (player->bush) {
+                pthread_mutex_lock(&lock);
                 player->command = WAIT;
                 player->bush = 0;
+                pthread_mutex_unlock(&lock);
             }
 
             send_data(player);
             recv(player->socket, buffer, sizeof(buffer), 0);
         }
-        pthread_mutex_unlock(&lock);
+
         usleep(TURN_TIME);
     }
     pthread_exit(NULL);
 }
 
 void send_beasts_data() {
+    pthread_mutex_lock(&lock);
     for (int i = 0; i < world.active_beasts; i++) {
         char map[BEAST_POV][BEAST_POV];
         for (int row = 0; row < BEAST_POV; row++) {
@@ -214,6 +220,7 @@ void send_beasts_data() {
         }
         send(server.beast_client, map, sizeof(map), 0);
     }
+    pthread_mutex_unlock(&lock);
 }
 
 void *beasts_connection_handler(void *arg) {
@@ -223,18 +230,19 @@ void *beasts_connection_handler(void *arg) {
 
     while (connected) {
         send_beasts_data();
+
         for (int i = 0; i < world.active_beasts; i++) {
             long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-            pthread_mutex_lock(&lock);
+
             if (bytes_received <= 0) {
                 connected = 0;
-                pthread_mutex_unlock(&lock);
                 break;
             }
 
             enum COMMAND request = (enum COMMAND) buffer[1];
             int parameter = (int) buffer[2];
 
+            pthread_mutex_lock(&lock);
             switch (request) {
                 case MOVE:
                     world.beasts[buffer[0]]->command = MOVE;
@@ -265,12 +273,12 @@ void *beasts_connection_handler(void *arg) {
                 default:
                     break;
             }
-            buffer[1] = WAIT;
 
             if (world.beasts[buffer[0]]->bush) {
                 world.beasts[buffer[0]]->command = WAIT;
                 world.beasts[buffer[0]]->bush = 0;
             }
+
             pthread_mutex_unlock(&lock);
         }
     }
@@ -280,11 +288,10 @@ void *beasts_connection_handler(void *arg) {
 
 void *listen_for_clients(void *arg) {
     int client_socket = accept(server.socket, NULL, NULL);
+    send(client_socket, server.message, sizeof(server.message), 0);
 
     struct type_and_pid pid;
-    send(client_socket, server.message, sizeof(server.message), 0);
     recv(client_socket, &pid, sizeof(pid), 0);
-    pthread_mutex_lock(&lock);
 
     if (pid.type == '1') { // this is player's client
 
@@ -292,8 +299,10 @@ void *listen_for_clients(void *arg) {
         int flag = 1, i;
         for (i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
+                pthread_mutex_lock(&lock);
                 server.clients[i] = client_socket;
                 flag = 0;
+                pthread_mutex_unlock(&lock);
                 break;
             }
         }
@@ -301,7 +310,6 @@ void *listen_for_clients(void *arg) {
         if (flag) {
             send(client_socket, "ER", 2, 0);
             disconnect_socket(client_socket);
-            pthread_mutex_unlock(&lock);
             pthread_exit(NULL);
         }
 
@@ -309,20 +317,19 @@ void *listen_for_clients(void *arg) {
         send(client_socket, "OK", 2, 0);
         pthread_t handler;
         pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
-        pthread_mutex_unlock(&lock);
         pthread_exit(NULL);
 
     }
-    else { // this is beast client
+
+    else {
+        // this is beast client
         if (server.beast_client == -1) {
             server.beast_client = client_socket;
             server.beasts_pid = pid.pid;
             pthread_t handler;
             pthread_create(&handler, NULL, beasts_connection_handler, (void *) &server.beast_client);
-            pthread_mutex_unlock(&lock);
             pthread_exit(NULL);
         } else {
-            pthread_mutex_unlock(&lock);
             disconnect_socket(client_socket);
             pthread_exit(NULL);
         }
@@ -363,7 +370,6 @@ void send_data(struct Player *player) {
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void run_orders(struct Player *player) {
-    char buffer[1024];
     if (is_open(player->socket)) {
         switch (player->command) {
             case MOVE:
@@ -380,7 +386,7 @@ void run_orders(struct Player *player) {
 }
 
 void run_orders_beast(struct Beast *beast) {
-        switch (beast->command) {
+    switch (beast->command) {
             case MOVE:
                 moveBeast(beast, beast->argument);
                 break;
@@ -401,6 +407,15 @@ void end_game() {
         }
     }
     server.up = 0;
+
+    clear();
+    close(server.socket);
+    close(server.beast_client);
+    mvprintw(2, 2, "Server closed, all players disconnected. Leaving in 3s...");
+    refresh();
+    usleep(3000000);
+    endwin();
+    exit(0);
 }
 
 void spawn_beast() {
@@ -429,31 +444,24 @@ void *key_listener(void *arg) {
                 break;
             case 'Q':
             case 'q':
-                key = '0';
                 server.up = 0;
-                pthread_mutex_lock(&lock);
                 end_game();
                 break;
             case 'c':
-                key = '0';
                 create_object(SMALL_TREASURE);
                 break;
             case 't':
-                key = '0';
                 create_object(MEDIUM_TREASURE);
                 break;
             case 'T':
-                key = '0';
                 create_object(BIG_TREASURE);
                 break;
             case 'B':
             case 'b':
-                key = '0';
-                // TODO add beasts
                 spawn_beast();
                 break;
             default:
-                key = '0';
+                break;
         }
         pthread_mutex_unlock(&lock);
     }
@@ -465,7 +473,6 @@ void *game(void *arg) {
     init_ui();
     noecho();
 
-    //int beast_handle = system("./beasts");
     pthread_create(&keyListenerThread, NULL, key_listener, NULL);
 
     while (server.up) {
@@ -483,20 +490,24 @@ void *game(void *arg) {
             }
         }
 
-        update_info();
-        refresh();
+        if (server.up) {
+            update_info();
+            refresh();
+        }
         pthread_mutex_unlock(&lock);
     }
 
     pthread_exit(NULL);
 }
 
-int main() { // server application
+int main() {
     srand(time(0));
+
+    pthread_mutex_lock(&lock);
     init_server();
     load_map();
-
     pthread_create(&playingThread, NULL, game, NULL);
+    pthread_mutex_unlock(&lock);
 
     while (server.up) {
         usleep(TURN_TIME);
@@ -505,6 +516,3 @@ int main() { // server application
     }
     return 0;
 }
-
-
-// TODO allow beasts to chase players, implement beast manager disconnection function, check why all player pids are 0, parse beast's manager data

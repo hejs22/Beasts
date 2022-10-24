@@ -65,7 +65,6 @@ void estabilish_connection() {
     clear();
     printf("Connection estabilished. ");
     this_client.server_pid = atoi(server_response);
-
     this_client.amount_of_beasts = 0;
 }
 
@@ -101,6 +100,8 @@ int is_player(char c) {
 }
 
 struct point scan_area(char map[BEAST_POV][BEAST_POV]) {
+    // returns location of nearest player
+
     int row = BEAST_POV / 2;
     int col = BEAST_POV / 2;
 
@@ -124,6 +125,7 @@ struct point scan_area(char map[BEAST_POV][BEAST_POV]) {
 }
 
 enum DIRECTION find_path(char map[BEAST_POV][BEAST_POV]) {
+    // finds best direction in which this beast should go
 
     struct point player_location = scan_area(map);
 
@@ -162,6 +164,7 @@ enum DIRECTION find_path(char map[BEAST_POV][BEAST_POV]) {
 }
 
 void *handle_beast(void *arg) {
+    // reads map and decides where to go
     int beast_id = *(int *) arg;
     char request[3];
     while (this_client.connected) {
@@ -177,16 +180,12 @@ void *handle_beast(void *arg) {
         send(this_client.network_socket, request, sizeof(request), 0);
         pthread_mutex_unlock(&lock);
 
-        if (request[2] == STOP) {
-            printf("Beast %d waits.\n", beast_id);
-        } else {
-            printf("Beast %d chases. \n", beast_id);
-        }
         usleep(TURN_TIME);
     }
 }
 
-void handleSIGUSR1 () {
+void handleSpawn () {
+    // creates new thread for new beast
     if (this_client.amount_of_beasts < MAX_BEASTS) {
         pthread_t new;
         int beast_id = this_client.amount_of_beasts;
@@ -197,9 +196,8 @@ void handleSIGUSR1 () {
 
 void beast_manager() {
     while (this_client.connected) {
+        // gets map every TURN_TIME microseconds
         get_info();
-
-        //printf("Map received\n");
         usleep(TURN_TIME);
     }
     leave_game();
@@ -210,7 +208,7 @@ int main() { // client application
     estabilish_connection();
     srand(time(0));
 
-    signal(SIGUSR1, handleSIGUSR1);
+    signal(SIGUSR1, handleSpawn);
     beast_manager();
 
     usleep(1000000);

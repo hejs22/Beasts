@@ -28,6 +28,8 @@ void print_player(struct Player *player, int row, int col) {
 }
 
 void handle_collision_player(struct Player *player, int row, int col) {
+    // checks multiple collision events and handles them
+
     if (world.map[row][col] == 'c') player->coins_carried += 1;
     else if (world.map[row][col] == 't') player->coins_carried += 10;
     else if (world.map[row][col] == 'T') player->coins_carried += 50;
@@ -64,6 +66,7 @@ int validMove(int row, int col) {
 }
 
 void movePlayer(struct Player *player, enum DIRECTION dir) {
+    // checks if player can move in desired direction, if so, changes his coordinates
     if (player == NULL) return;
 
     switch (dir) {
@@ -153,13 +156,16 @@ void killPlayer(struct Player *player) {
 }
 
 void deletePlayer(struct Player *player) {
+    // cleans up after player
     killPlayer(player);
+    close(player->socket);
     free(player);
     player = NULL;
     world.active_players--;
 }
 
 void dropTreasure(struct Player *player) {
+    // drops coins of player killed
     world.treasure_map[player->pos_row][player->pos_col] += player->coins_carried;
     print_tile(DROPPED_TREASURE, player->pos_row, player->pos_col);
 };

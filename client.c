@@ -283,9 +283,6 @@ struct player_data_transfer {
 };
 
 void get_info() {
-    //this_client.request[0] = GET_MAP;
-    //send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-
     struct player_data_transfer data;
     long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
 
@@ -302,7 +299,6 @@ void get_info() {
         this_client.camp_x = data.camp_x;
         this_client.camp_y = data.camp_y;
 
-        mvprintw(0, 0, "Map received, round: %d", this_client.round);
         print_map_client();
         print_info_client();
     }
@@ -313,7 +309,7 @@ void get_info() {
 
 void *key_listener(void *arg) {
     cbreak();
-    keypad(stdscr, NULL);
+    keypad(stdscr, TRUE);
 
     while (this_client.connected) {
         int key = getch();
@@ -324,24 +320,24 @@ void *key_listener(void *arg) {
                 leave_game();
                 break;
             case 'w':
+            case KEY_UP:
                 this_client.request[0] = MOVE;
                 this_client.request[1] = UP;
-                // tell server to go up
                 break;
             case 'a':
+            case KEY_LEFT:
                 this_client.request[0] = MOVE;
                 this_client.request[1] = LEFT;
-                // tell server to go left
                 break;
             case 's':
+            case KEY_DOWN:
                 this_client.request[0] = MOVE;
                 this_client.request[1] = DOWN;
-                // etc
                 break;
             case 'd':
+            case KEY_RIGHT:
                 this_client.request[0] = MOVE;
                 this_client.request[1] = RIGHT;
-                // etc
                 break;
             default:
                 break;
@@ -372,6 +368,8 @@ int is_collectible(int row, int col) {
 }
 
 enum DIRECTION scan_area() {
+    // finds best and safe direction
+
     enum DIRECTION dir = STOP;
 
     if (is_collectible(1, 0)) {
@@ -404,6 +402,7 @@ enum DIRECTION scan_area() {
 }
 
 void ai_client() {
+    // gets map, chooses direction, sends request
     get_info();
     this_client.request[1] = scan_area();
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
