@@ -210,7 +210,5 @@ int main() { // client application
 
     signal(SIGUSR1, handleSpawn);
     beast_manager();
-
-    usleep(1000000);
     return 0;
 }

@@ -407,6 +407,16 @@ void ai_client() {
     this_client.request[1] = scan_area();
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
     get_info();
+    usleep(TURN_TIME);
+    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+}
+
+void human_client() {
+    get_info();
+    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+    get_info();
+    usleep(TURN_TIME);
+    this_client.request[0] = WAIT;
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
 }
 
@@ -422,13 +432,8 @@ void game_client() {
         pthread_t keyboardListener;
         pthread_create(&keyboardListener, NULL, key_listener, NULL);
         while (this_client.connected) {
-            get_info();
-            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-            get_info();
-            this_client.request[0] = WAIT;
-            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+            human_client();
         }
-
         pthread_join(keyboardListener, NULL);
     }
     leave_game();

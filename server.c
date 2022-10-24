@@ -199,7 +199,6 @@ void *client_server_connection_handler(void *arg) {
             recv(player->socket, buffer, sizeof(buffer), 0);
         }
 
-        usleep(TURN_TIME);
     }
     pthread_exit(NULL);
 }
@@ -287,11 +286,7 @@ void *beasts_connection_handler(void *arg) {
 }
 
 void *listen_for_clients(void *arg) {
-    int client_socket = accept(server.socket, NULL, NULL);
-    send(client_socket, server.message, sizeof(server.message), 0);
-
-    struct type_and_pid pid;
-    recv(client_socket, &pid, sizeof(pid), 0);
+    struct type_and_pid pid = *(struct type_and_pid*) arg;
 
     if (pid.type == '1') { // this is player's client
 
@@ -300,7 +295,7 @@ void *listen_for_clients(void *arg) {
         for (i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
                 pthread_mutex_lock(&lock);
-                server.clients[i] = client_socket;
+                server.clients[i] = pid.socket;
                 flag = 0;
                 pthread_mutex_unlock(&lock);
                 break;
@@ -308,13 +303,13 @@ void *listen_for_clients(void *arg) {
         }
         // if all slots are taken, disconnect socket and exit
         if (flag) {
-            send(client_socket, "ER", 2, 0);
-            disconnect_socket(client_socket);
+            send(pid.socket, "ER", 2, 0);
+            disconnect_socket(pid.socket);
             pthread_exit(NULL);
         }
 
         // create a handler thread for each connection and remember client's socket
-        send(client_socket, "OK", 2, 0);
+        send(pid.socket, "OK", 2, 0);
         pthread_t handler;
         pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
         pthread_exit(NULL);
@@ -324,13 +319,13 @@ void *listen_for_clients(void *arg) {
     else {
         // this is beast client
         if (server.beast_client == -1) {
-            server.beast_client = client_socket;
+            server.beast_client = pid.socket;
             server.beasts_pid = pid.pid;
             pthread_t handler;
             pthread_create(&handler, NULL, beasts_connection_handler, (void *) &server.beast_client);
             pthread_exit(NULL);
         } else {
-            disconnect_socket(client_socket);
+            disconnect_socket(pid.socket);
             pthread_exit(NULL);
         }
     }
@@ -411,9 +406,9 @@ void end_game() {
     clear();
     close(server.socket);
     close(server.beast_client);
-    mvprintw(2, 2, "Server closed, all players disconnected. Leaving in 3s...");
+    mvprintw(2, 2, "Server closed, all players disconnected. Press any key to continue...");
     refresh();
-    usleep(3000000);
+    getch();
     endwin();
     exit(0);
 }
@@ -510,8 +505,13 @@ int main() {
     pthread_mutex_unlock(&lock);
 
     while (server.up) {
-        usleep(TURN_TIME);
-        pthread_create(&listeningThread, NULL, listen_for_clients, NULL);
+        struct type_and_pid pid;
+        int client_socket = accept(server.socket, NULL, NULL);
+        send(client_socket, server.message, sizeof(server.message), 0);
+        recv(client_socket, &pid, sizeof(pid), 0);
+        pid.socket = client_socket;
+
+        pthread_create(&listeningThread, NULL, listen_for_clients, &pid);
         pthread_join(listeningThread, NULL);
     }
     return 0;
