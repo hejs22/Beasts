@@ -33,10 +33,10 @@ struct Beast {
 };
 
 
-void print_player(struct Player *player, int row, int col);
-void handle_collision_player(struct Player *player, int row, int col);
+void printPlayer(const struct Player *player, int row, int col);
+void handleCollisionPlayer(struct Player *player, int row, int col);
 
-void dropTreasure(struct Player *player);
+void dropTreasure(const struct Player *player);
 void killPlayer(struct Player *player);
 
 struct Player *create_player(int);

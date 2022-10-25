@@ -17,12 +17,14 @@
 #include "player.h"
 #include "beasts.h"
 
-pthread_t listeningThread, playingThread, keyListenerThread;
+pthread_t listeningThread;
+pthread_t playingThread;
+pthread_t keyListenerThread;
 pthread_mutex_t lock;
 
 // SERVER INITIALIZATION ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void init_server() {
+void initServer() {
     // set server parameters
     server.up = 0;
     server.number_of_clients = MAX_CLIENTS;
@@ -52,7 +54,7 @@ void init_server() {
     server.up = 1;
 };
 
-void init_ui() {
+void initUi() {
     initscr();
 
     // create color pairs used in game
@@ -71,22 +73,23 @@ void init_ui() {
     }
 
     // Printing server's view
-    print_map();
-    print_initial_objects();
-    print_info();
+    printMap();
+    printInitialObjects();
+    printInfo();
     refresh();
 }
 
 // CONNECTION MANAGEMENT ///////////////////////////////////////////////////////////////////////////////////////////////
 
 
-int is_open(int socket) {
-    long res = recv(socket,NULL,1, MSG_PEEK | MSG_DONTWAIT);
+int isOpen(int socket) {
+    char c;
+    long res = recv(socket, &c, 1, MSG_PEEK | MSG_DONTWAIT);
     if (res != 0) return 1;
     return 0;
 }
 
-void disconnect_socket(int socket) {
+void disconnectSocket(int socket) {
     // delete socket from sockets array and close it
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (server.clients[i] == socket) {
@@ -94,16 +97,16 @@ void disconnect_socket(int socket) {
             close(socket);
         }
     }
+
+    if (socket == server.beast_client) {
+        server.beast_client = -1;
+        close(socket);
+    }
 }
 
-void *client_server_connection_handler(void *arg) {
+struct Player *addPlayerToList(int socket) {
     struct Player *player;
-    int socket = *(int *) arg;
-    int connected = 1;
-    char buffer[1024];
-    int flag = 0;
-
-    if (is_open(socket)) {
+    if (isOpen(socket)) {
         // check for empty slots, if any is found create player
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == socket) {
@@ -113,127 +116,141 @@ void *client_server_connection_handler(void *arg) {
                 player->avatar = i + '1';
                 world.players[i] = player;
                 world.active_players++;
-                flag = 1;
                 pthread_mutex_unlock(&lock);
-                break;
+                return player;
             }
         }
     }
+    return NULL;
+}
 
+void handleDisconnection(int socket) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if ((world.players[i] != NULL) && (world.players[i]->socket == socket)) {
+                pthread_mutex_lock(&lock);
+            disconnectSocket(socket);
+                deletePlayer(world.players[i]);
+                pthread_mutex_unlock(&lock);
+                break;
+        }
+    }
+}
 
+void *clientServerConnectionHandler(void *arg) {
+    struct Player *player = NULL;
+    int socket = *(int *) arg;
+    int connected = 1;
+    char buffer[1024];
+
+    player = addPlayerToList(socket);
     // if all slots are taken disconnect and exit
-    if (flag == 0) {
-        disconnect_socket(socket);
+    if (!player) {
+        disconnectSocket(socket);
         pthread_exit(NULL);
     }
 
 
     while (connected) {
-
         // if client isn't connected, disconnect his socket and free his Player structure
-        if (!is_open(socket)) {
-            for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (world.players[i] != NULL) {
-                    if (world.players[i]->socket == socket) {
-                        pthread_mutex_lock(&lock);
-                        disconnect_socket(socket);
-                        deletePlayer(world.players[i]);
-                        pthread_mutex_unlock(&lock);
-                        break;
-                    }
-                }
-            }
+        if (!isOpen(socket)) {
+            handleDisconnection(socket);
             connected = 0;
         }
 
-        send_data(player);
+        sendData(player);
         mvprintw(0, 0, "Map sent to player: %c, round: %d", player->avatar, server.round);
 
         long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
-        if (bytes_received > 0) {
-            enum COMMAND request = (enum COMMAND) buffer[0];
-            int parameter = (int) buffer[1];
-
-            switch (request) {
-                case MOVE:
-                    switch (parameter) {
-                        case UP:
-                            player->command = MOVE;
-                            player->argument = UP;
-                            break;
-                        case DOWN:
-                            player->command = MOVE;
-                            player->argument = DOWN;
-                            break;
-                        case LEFT:
-                            player->command = MOVE;
-                            player->argument = LEFT;
-                            break;
-                        case RIGHT:
-                            player->command = MOVE;
-                            player->argument = RIGHT;
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
-                case QUIT:
-                    pthread_mutex_lock(&lock);
-                    disconnect_socket(player->socket);
-                    deletePlayer(player);
-                    connected = 0;
-                    pthread_mutex_unlock(&lock);
-                    break;
-                default:
-                    break;
-            }
-
-            if (player->bush) {
-                pthread_mutex_lock(&lock);
-                player->command = WAIT;
-                player->bush = 0;
-                pthread_mutex_unlock(&lock);
-            }
-
-            send_data(player);
-            recv(player->socket, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            handleDisconnection(socket);
         }
+
+        enum COMMAND request = (enum COMMAND) buffer[0];
+        int parameter = (int) buffer[1];
+
+        switch (request) {
+            case MOVE:
+                switch (parameter) {
+                    case UP:
+                        player->command = MOVE;
+                        player->argument = UP;
+                        break;
+                    case DOWN:
+                        player->command = MOVE;
+                        player->argument = DOWN;
+                        break;
+                    case LEFT:
+                        player->command = MOVE;
+                        player->argument = LEFT;
+                        break;
+                    case RIGHT:
+                        player->command = MOVE;
+                        player->argument = RIGHT;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            case QUIT:
+                pthread_mutex_lock(&lock);
+                disconnectSocket(player->socket);
+                deletePlayer(player);
+                connected = 0;
+                pthread_mutex_unlock(&lock);
+                break;
+            default:
+                break;
+        }
+
+        if (player->bush) {
+            pthread_mutex_lock(&lock);
+            player->command = WAIT;
+            player->bush = 0;
+            pthread_mutex_unlock(&lock);
+        }
+
+        sendData(player);
+        recv(player->socket, buffer, sizeof(buffer), 0);
 
     }
     pthread_exit(NULL);
 }
 
-void send_beasts_data() {
-    pthread_mutex_lock(&lock);
-    for (int i = 0; i < world.active_beasts; i++) {
-        char map[BEAST_POV][BEAST_POV];
-        for (int row = 0; row < BEAST_POV; row++) {
-            for (int col = 0; col < BEAST_POV; col++) {
-                if (is_position_valid(row - (BEAST_POV / 2) + world.beasts[i]->pos_row, col - (BEAST_POV / 2) + world.beasts[i]->pos_col)) {
-                    map[row][col] = world.map[row - (BEAST_POV / 2) + world.beasts[i]->pos_row][col - (BEAST_POV / 2) + world.beasts[i]->pos_col];
-                }
-                else {
-                    map[row][col] = 'X';
-                }
+void sendBeastData(const struct Beast *beast) {
+    char map[BEAST_POV][BEAST_POV];
+    for (int row = 0; row < BEAST_POV; row++) {
+        for (int col = 0; col < BEAST_POV; col++) {
+            if (isPositionValid(row - (BEAST_POV / 2) + beast->pos_row,
+                                col - (BEAST_POV / 2) + beast->pos_col)) {
+                map[row][col] = world.map[row - (BEAST_POV / 2) + beast->pos_row][col - (BEAST_POV / 2) +
+                                                                                            beast->pos_col];
+            } else {
+                map[row][col] = 'X';
             }
         }
-        send(server.beast_client, map, sizeof(map), 0);
     }
-    pthread_mutex_unlock(&lock);
+    send(server.beast_client, map, sizeof(map), 0);
 }
 
-void *beasts_connection_handler(void *arg) {
+
+void *beastsConnectionHandler(void *arg) {
     int socket = *(int *) arg;
     int connected = 1;
     char buffer[1024];
 
     while (connected) {
-        send_beasts_data();
+
+        pthread_mutex_lock(&lock);
+        for (int i = 0; i < world.active_beasts; i++) {
+            sendBeastData(world.beasts[i]);
+        }
+        pthread_mutex_unlock(&lock);
 
         for (int i = 0; i < world.active_beasts; i++) {
             long bytes_received = recv(socket, buffer, sizeof(buffer), 0);
 
             if (bytes_received <= 0) {
+                disconnectSocket(server.beast_client);
                 connected = 0;
                 break;
             }
@@ -263,10 +280,8 @@ void *beasts_connection_handler(void *arg) {
                             break;
                     }
                     break;
-                case WAIT:
-                    break;
                 case QUIT:
-                    disconnect_socket(server.beast_client);
+                    disconnectSocket(server.beast_client);
                     connected = 0;
                     break;
                 default:
@@ -285,13 +300,15 @@ void *beasts_connection_handler(void *arg) {
     pthread_exit(NULL);
 }
 
-void *listen_for_clients(void *arg) {
-    struct type_and_pid pid = *(struct type_and_pid*) arg;
+void *listenForClients(void *arg) {
+    struct type_and_pid pid = *(struct type_and_pid *) arg;
 
     if (pid.type == '1') { // this is player's client
 
         // check for empty client slots
-        int flag = 1, i;
+        int flag = 1;
+        int i;
+
         for (i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
                 pthread_mutex_lock(&lock);
@@ -304,28 +321,26 @@ void *listen_for_clients(void *arg) {
         // if all slots are taken, disconnect socket and exit
         if (flag) {
             send(pid.socket, "ER", 2, 0);
-            disconnect_socket(pid.socket);
+            disconnectSocket(pid.socket);
             pthread_exit(NULL);
         }
 
         // create a handler thread for each connection and remember client's socket
         send(pid.socket, "OK", 2, 0);
         pthread_t handler;
-        pthread_create(&handler, NULL, client_server_connection_handler, (void *) &server.clients[i]);
+        pthread_create(&handler, NULL, clientServerConnectionHandler, (void *) &server.clients[i]);
         pthread_exit(NULL);
 
-    }
-
-    else {
+    } else {
         // this is beast client
         if (server.beast_client == -1) {
             server.beast_client = pid.socket;
             server.beasts_pid = pid.pid;
             pthread_t handler;
-            pthread_create(&handler, NULL, beasts_connection_handler, (void *) &server.beast_client);
+            pthread_create(&handler, NULL, beastsConnectionHandler, (void *) &server.beast_client);
             pthread_exit(NULL);
         } else {
-            disconnect_socket(pid.socket);
+            disconnectSocket(pid.socket);
             pthread_exit(NULL);
         }
     }
@@ -335,15 +350,15 @@ void *listen_for_clients(void *arg) {
 // DATA TRANSFER ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-void send_data(struct Player *player) {
+void sendData(const struct Player *player) {
     struct player_data_transfer data;
 
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
-            if (is_position_valid(row - (PLAYER_POV / 2) + player->pos_row, col - (PLAYER_POV / 2) + player->pos_col)) {
-                data.map[row][col] = world.map[row - (PLAYER_POV / 2) + player->pos_row][col - (PLAYER_POV / 2) + player->pos_col];
-            }
-            else {
+            if (isPositionValid(row - (PLAYER_POV / 2) + player->pos_row, col - (PLAYER_POV / 2) + player->pos_col)) {
+                data.map[row][col] = world.map[row - (PLAYER_POV / 2) + player->pos_row][col - (PLAYER_POV / 2) +
+                                                                                         player->pos_col];
+            } else {
                 data.map[row][col] = 'X';
             }
         }
@@ -364,14 +379,14 @@ void send_data(struct Player *player) {
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void run_orders(struct Player *player) {
-    if (is_open(player->socket)) {
+void runOrders(struct Player *player) {
+    if (isOpen(player->socket)) {
         switch (player->command) {
             case MOVE:
                 movePlayer(player, player->argument);
                 break;
             case QUIT:
-                disconnect_socket(player->socket);
+                disconnectSocket(player->socket);
                 deletePlayer(player);
             default:
                 break;
@@ -380,22 +395,18 @@ void run_orders(struct Player *player) {
     player->command = WAIT;
 }
 
-void run_orders_beast(struct Beast *beast) {
-    switch (beast->command) {
-            case MOVE:
-                moveBeast(beast, beast->argument);
-                break;
-            default:
-                break;
-        }
+void runOrdersBeast(struct Beast *beast) {
+    if (beast->command == MOVE) {
+        moveBeast(beast, beast->argument);
+    }
 }
 
-int is_position_valid(int row, int col) {
+int isPositionValid(int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return 0;
     return 1;
 }
 
-void end_game() {
+void endGame() {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (world.players[i] != NULL) {
             deletePlayer(world.players[i]);
@@ -413,12 +424,12 @@ void end_game() {
     exit(0);
 }
 
-void spawn_beast() {
+void spawnBeast() {
     if ((world.active_beasts < MAX_BEASTS) && (server.beast_client != -1)) {
         kill(server.beasts_pid, SIGUSR1);
         for (int i = 0; i < MAX_BEASTS; i++) {
             if (world.beasts[i] == NULL) {
-                world.beasts[i] = create_beast();
+                world.beasts[i] = createBeast();
                 break;
             }
         }
@@ -426,7 +437,7 @@ void spawn_beast() {
     }
 }
 
-void *key_listener(void *arg) {
+void *keyListener(void *arg) {
     noecho();
 
     while (server.up) {
@@ -435,25 +446,25 @@ void *key_listener(void *arg) {
         switch (key) {
             case 'r':
             case 'R':
-                refresh_screen();
+                refreshScreen();
                 break;
             case 'Q':
             case 'q':
                 server.up = 0;
-                end_game();
+                endGame();
                 break;
             case 'c':
-                create_object(SMALL_TREASURE);
+                createObject(SMALL_TREASURE);
                 break;
             case 't':
-                create_object(MEDIUM_TREASURE);
+                createObject(MEDIUM_TREASURE);
                 break;
             case 'T':
-                create_object(BIG_TREASURE);
+                createObject(BIG_TREASURE);
                 break;
             case 'B':
             case 'b':
-                spawn_beast();
+                spawnBeast();
                 break;
             default:
                 break;
@@ -465,10 +476,10 @@ void *key_listener(void *arg) {
 }
 
 void *game(void *arg) {
-    init_ui();
+    initUi();
     noecho();
 
-    pthread_create(&keyListenerThread, NULL, key_listener, NULL);
+    pthread_create(&keyListenerThread, NULL, keyListener, NULL);
 
     while (server.up) {
         usleep(TURN_TIME);
@@ -476,17 +487,17 @@ void *game(void *arg) {
         server.round++;
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (world.players[i] != NULL) {
-               run_orders(world.players[i]);
+                runOrders(world.players[i]);
             }
         }
         for (int i = 0; i < MAX_BEASTS; i++) {
             if (world.beasts[i] != NULL) {
-                run_orders_beast(world.beasts[i]);
+                runOrdersBeast(world.beasts[i]);
             }
         }
 
         if (server.up) {
-            update_info();
+            updateInfo();
             refresh();
         }
         pthread_mutex_unlock(&lock);
@@ -499,8 +510,8 @@ int main() {
     srand(time(0));
 
     pthread_mutex_lock(&lock);
-    init_server();
-    load_map();
+    initServer();
+    loadMap();
     pthread_create(&playingThread, NULL, game, NULL);
     pthread_mutex_unlock(&lock);
 
@@ -511,7 +522,7 @@ int main() {
         recv(client_socket, &pid, sizeof(pid), 0);
         pid.socket = client_socket;
 
-        pthread_create(&listeningThread, NULL, listen_for_clients, &pid);
+        pthread_create(&listeningThread, NULL, listenForClients, &pid);
         pthread_join(listeningThread, NULL);
     }
     return 0;

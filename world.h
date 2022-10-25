@@ -14,17 +14,17 @@ struct World {
     int campfire_col;
 } world;
 
-void load_map();
-void print_map();
-void print_info();
-void update_info();
-void refresh_screen();
-void print_tile(enum TILE, int, int);
+void loadMap();
+void printMap();
+void printInfo();
+void updateInfo();
+void refreshScreen();
+void printTile(enum TILE TYPE, int row, int col);
 
-void create_object(enum TILE);
-void print_initial_objects();
+void createObject(enum TILE TYPE);
+void printInitialObjects();
 
-int find_treasure_at(int row, int col);
-enum TILE get_tile_at(int row, int col);
+int findTreasureAt(int row, int col);
+enum TILE getTileAt(int row, int col);
 
 #endif //CLIENT_WORLD_H

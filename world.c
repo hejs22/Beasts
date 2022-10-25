@@ -17,15 +17,15 @@
 #include "beasts.h"
 
 
-void load_map() {  // loads map from txt file into global variable
+void loadMap() {  // loads map from txt file into global variable
     FILE *mapfile = fopen(MAP_FILENAME, "r");
     if (mapfile == NULL) {
-        //printf("Couldn't load a map. Aborting...\n");
         return;
     }
 
     char c;
-    int row = 0, col = 0;
+    int row = 0;
+    int col = 0;
 
     while (!feof(mapfile)) {
         fscanf(mapfile, "%c", &c);
@@ -44,17 +44,17 @@ void load_map() {  // loads map from txt file into global variable
     fclose(mapfile);
 }
 
-void print_map() {  // prints map on console based on world.map[][]
+void printMap() {  // prints map on console based on world.map[][]
     for (int row = 0; row < MAP_HEIGHT; row++) {
         for (int col = 0; col < MAP_WIDTH; col++) {
             if (world.map[row][col] == 'X') {
-                print_tile(WALL, row, col);
+                printTile(WALL, row, col);
             } else if (world.map[row][col] == '#') {
-                print_tile(BUSH, row, col);
+                printTile(BUSH, row, col);
             } else if (world.map[row][col] == ' ') {
-                print_tile(EMPTY, row, col);
+                printTile(EMPTY, row, col);
             } else if (world.map[row][col] == 'A') {
-                print_tile(CAMPFIRE, row, col);
+                printTile(CAMPFIRE, row, col);
                 world.campfire_row = row;
                 world.campfire_col = col;
             }
@@ -62,17 +62,17 @@ void print_map() {  // prints map on console based on world.map[][]
     }
 }
 
-void print_initial_objects() {
+void printInitialObjects() {
     // function runs at the beginning, creates bushes and coins in random places
-    for (int i = 0; i < TREASURES_AMOUNT; i++) create_object(rand() % 3 + 1);
-    for (int i = 0; i < BUSHES_AMOUNT; i++) create_object(BUSH);
+    for (int i = 0; i < TREASURES_AMOUNT; i++) createObject(rand() % 3 + 1);
+    for (int i = 0; i < BUSHES_AMOUNT; i++) createObject(BUSH);
 }
 
-void update_info() {
+void updateInfo() {
     mvprintw(INFO_POS_Y, INFO_POS_X + 80, "%d    ", server.round);
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
-        struct Player *player = world.players[i];
+        const struct Player *player = world.players[i];
         if (player != NULL) {
             mvprintw(INFO_POS_Y + 3, INFO_POS_X + (i + 1) * 15, "%d      ", player->pid);
             if (player->human) mvprintw(INFO_POS_Y + 4, INFO_POS_X + (i + 1) * 15, "HUMAN  ");
@@ -94,7 +94,7 @@ void update_info() {
     }
 }
 
-void print_info() {
+void printInfo() {
     mvprintw(INFO_POS_Y, INFO_POS_X, "Server's PID: %d", server.pid);
     mvprintw(INFO_POS_Y, INFO_POS_X + 30, "Campsite's X/Y: %d/%d    ", world.campfire_row, world.campfire_col);
     mvprintw(INFO_POS_Y, INFO_POS_X + 65, "Round number: ");
@@ -155,10 +155,10 @@ void print_info() {
     attroff(A_BOLD);
     attroff(COLOR_PAIR(14));
 
-    update_info();
+    updateInfo();
 }
 
-void print_tile(enum TILE TYPE, int row, int col) {
+void printTile(enum TILE TYPE, int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return;
     if (TYPE == BUSH) {
         attron(COLOR_PAIR(12));
@@ -217,25 +217,25 @@ void print_tile(enum TILE TYPE, int row, int col) {
 
 }
 
-void create_object(enum TILE TYPE) {
+void createObject(enum TILE TYPE) {
     int flag = 1;
     while (flag) {
         int rand_col = rand() % MAP_WIDTH;
         int rand_row = rand() % MAP_HEIGHT;
         if (world.map[rand_row][rand_col] == ' ') {
-            print_tile(TYPE, rand_row, rand_col);
+            printTile(TYPE, rand_row, rand_col);
             flag = 0;
         }
     }
 }
 
-int find_treasure_at(int row, int col) {
+int findTreasureAt(int row, int col) {
     int coins = world.treasure_map[row][col];
     world.treasure_map[row][col] = 0;
     return coins;
 }
 
-enum TILE get_tile_at(int row, int col) {
+enum TILE getTileAt(int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return -1;
     if (world.map[row][col] == '#') {
         return BUSH;
@@ -253,21 +253,21 @@ enum TILE get_tile_at(int row, int col) {
     return -1;
 }
 
-void refresh_screen() {
+void refreshScreen() {
     clear();
-    print_map();
-    print_info();
-    update_info();
+    printMap();
+    printInfo();
+    updateInfo();
     for (int row = 0; row < MAP_HEIGHT; row++) {
         for (int col = 0; col < MAP_WIDTH; col++) {
             if (world.map[row][col] == 'c') {
-                print_tile(SMALL_TREASURE, row, col);
+                printTile(SMALL_TREASURE, row, col);
             } else if (world.map[row][col] == 't') {
-                print_tile(MEDIUM_TREASURE, row, col);
+                printTile(MEDIUM_TREASURE, row, col);
             } else if (world.map[row][col] == 'T') {
-                print_tile(BIG_TREASURE, row, col);
+                printTile(BIG_TREASURE, row, col);
             } else if (world.map[row][col] == 'D') {
-                print_tile(DROPPED_TREASURE, row, col);
+                printTile(DROPPED_TREASURE, row, col);
             }
         }
     }

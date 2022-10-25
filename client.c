@@ -39,7 +39,7 @@ struct client_socket {
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
-void client_configure() {
+void clientConfigure() {
     // create a socket
     this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);  // socket is created
 
@@ -51,7 +51,7 @@ void client_configure() {
     this_client.round = -1;
 }
 
-void leave_game() {
+void leaveGame() {
     close(this_client.network_socket);
     this_client.connected = 0;
     clear();
@@ -66,10 +66,11 @@ void leave_game() {
     getch();
 }
 
-void estabilish_connection() {
+void estabilishConnection() {
     int i = 0;
     while (i < 10) {
-        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address, sizeof(this_client.server_address));
+        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address,
+                                        sizeof(this_client.server_address));
         if (connection_status >= 0) break;
         printf("Waiting for server initialization...\n");
         usleep(TURN_TIME * 5);
@@ -86,13 +87,13 @@ void estabilish_connection() {
     long res = recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
 
     if (res <= 0) {
-        leave_game();
+        leaveGame();
     }
 
     send(this_client.network_socket, &pid, sizeof(pid), 0);
     res = recv(this_client.network_socket, this_client.buffer, sizeof(this_client.buffer), 0);
     if ((res <= 0) || (this_client.buffer[0] == 'E')) {
-        leave_game();
+        leaveGame();
     }
 
     clear();
@@ -101,7 +102,7 @@ void estabilish_connection() {
 
 // USER GRAPHICAL INTERFACE ///////////////////////////////////////////////////////////////////////////////////////////
 
-void print_tile_client(char c, int row, int col) {
+void printTileClient(char c, int row, int col) {
     switch (c) {
         case '#':
             attron(COLOR_PAIR(12));
@@ -167,7 +168,7 @@ void print_tile_client(char c, int row, int col) {
     }
 }
 
-void print_legend() {
+void printLegend() {
     mvprintw(2, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Server's PID:");
     mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Campsite's X/Y: ");
     mvprintw(4, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Round number: ");
@@ -221,16 +222,16 @@ void print_legend() {
     attroff(COLOR_PAIR(14));
 }
 
-void print_map_client() {
+void printMapClient() {
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
-            print_tile_client(this_client.map[row][col], row + 1, col + 3);
+            printTileClient(this_client.map[row][col], row + 1, col + 3);
         }
     }
     move(0, 0);
 }
 
-void print_info_client() {
+void printInfoClient() {
     mvprintw(2, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d    ", this_client.server_pid);
     mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d/%d     ", this_client.camp_x, this_client.camp_y);
     mvprintw(4, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d     ", this_client.round);
@@ -241,7 +242,7 @@ void print_info_client() {
     mvprintw(9, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.deaths);
 }
 
-void init_ui_client() {
+void initUiClient() {
     initscr();
     noecho();
 
@@ -265,7 +266,7 @@ void init_ui_client() {
     }
 
     clear();
-    print_legend();
+    printLegend();
 }
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,12 +283,12 @@ struct player_data_transfer {
     int camp_y;
 };
 
-void get_info() {
+void getInfo() {
     struct player_data_transfer data;
     long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
 
     if (bytes_received <= 0) {
-        leave_game();
+        leaveGame();
     } else {
         memcpy(this_client.map, data.map, sizeof(data.map));
         this_client.pos_row = data.pos_X;
@@ -299,15 +300,15 @@ void get_info() {
         this_client.camp_x = data.camp_x;
         this_client.camp_y = data.camp_y;
 
-        print_map_client();
-        print_info_client();
+        printMapClient();
+        printInfoClient();
     }
     refresh();
 }
 
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void *key_listener(void *arg) {
+void *keyListener(void *arg) {
     cbreak();
     keypad(stdscr, TRUE);
 
@@ -317,7 +318,7 @@ void *key_listener(void *arg) {
         switch (key) {
             case 'Q':
             case 'q':
-                leave_game();
+                leaveGame();
                 break;
             case 'w':
             case KEY_UP:
@@ -349,47 +350,49 @@ void *key_listener(void *arg) {
 }
 
 
-int is_not_obstacle(int row, int col) {
+int isNotObstacle(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
-    if ((this_client.map[row][col] == 'A') || (this_client.map[row][col] == 'X') || (this_client.map[row][col] == '*')) {
+    if ((this_client.map[row][col] == 'A') || (this_client.map[row][col] == 'X') ||
+        (this_client.map[row][col] == '*')) {
         return 0;
     }
     return 1;
 }
 
-int is_collectible(int row, int col) {
+int isCollectible(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
-    if ((this_client.map[row][col] == 'D') || (this_client.map[row][col] == 'T') || (this_client.map[row][col] == 't') || (this_client.map[row][col] == 'c')) {
+    if ((this_client.map[row][col] == 'D') || (this_client.map[row][col] == 'T') ||
+        (this_client.map[row][col] == 't') || (this_client.map[row][col] == 'c')) {
         return 1;
     }
     return 0;
 }
 
-enum DIRECTION scan_area() {
+enum DIRECTION scanArea() {
     // finds best and safe direction
 
     enum DIRECTION dir = STOP;
 
-    if (is_collectible(1, 0)) {
+    if (isCollectible(1, 0)) {
         dir = DOWN;
-    } else if (is_collectible(-1, 0)) {
+    } else if (isCollectible(-1, 0)) {
         dir = UP;
-    } else if (is_collectible(0, 1)) {
+    } else if (isCollectible(0, 1)) {
         dir = RIGHT;
-    } else if (is_collectible(0, -1)) {
+    } else if (isCollectible(0, -1)) {
         dir = LEFT;
     }
 
     if (dir == STOP) {
-        if (is_not_obstacle(1, 0) && is_collectible(2, 0)) {
+        if (isNotObstacle(1, 0) && isCollectible(2, 0)) {
             dir = DOWN;
-        } else if (is_not_obstacle(-1, 0) && is_collectible(-2, 0)) {
+        } else if (isNotObstacle(-1, 0) && isCollectible(-2, 0)) {
             dir = UP;
-        } else if (is_not_obstacle(0, 1) && is_collectible(0, 2)) {
+        } else if (isNotObstacle(0, 1) && isCollectible(0, 2)) {
             dir = RIGHT;
-        } else  if (is_not_obstacle(0, -1) && is_collectible(0, -2)) {
+        } else if (isNotObstacle(0, -1) && isCollectible(0, -2)) {
             dir = LEFT;
         }
     }
@@ -401,51 +404,51 @@ enum DIRECTION scan_area() {
     return dir;
 }
 
-void ai_client() {
+void aiClient() {
     // gets map, chooses direction, sends request
-    get_info();
-    this_client.request[1] = scan_area();
+    getInfo();
+    this_client.request[1] = scanArea();
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-    get_info();
+    getInfo();
     usleep(TURN_TIME);
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
 }
 
-void human_client() {
-    get_info();
+void humanClient() {
+    getInfo();
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-    get_info();
-    usleep(TURN_TIME);
     this_client.request[0] = WAIT;
+    getInfo();
+    usleep(TURN_TIME);
     send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
 }
 
-void game_client() {
+void gameClient() {
     if (this_client.playertype == CPU) {
         this_client.request[0] = MOVE;
         srand(time(0));
         while (this_client.connected) {
-            ai_client();
+            aiClient();
         }
 
     } else if (this_client.playertype == HUMAN) {
         pthread_t keyboardListener;
-        pthread_create(&keyboardListener, NULL, key_listener, NULL);
+        pthread_create(&keyboardListener, NULL, keyListener, NULL);
         while (this_client.connected) {
-            human_client();
+            humanClient();
         }
         pthread_join(keyboardListener, NULL);
     }
-    leave_game();
+    leaveGame();
 }
 
 int main() { // client application
 
-    client_configure();
-    estabilish_connection();
+    clientConfigure();
+    estabilishConnection();
 
-    init_ui_client();
-    print_legend();
-    game_client();
+    initUiClient();
+    printLegend();
+    gameClient();
     return 0;
 }

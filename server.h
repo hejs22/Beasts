@@ -30,10 +30,15 @@ struct player_data_transfer {
 };
 
 void send_map(struct Player *player);
-void send_data(struct Player *player);
-int is_position_valid(int row, int col);
-void disconnect_socket(int);
-void init_ui();
-void run_orders(struct Player *);
+
+void sendData(const struct Player *player);
+
+int isPositionValid(int row, int col);
+
+void disconnectSocket(int);
+
+void initUi();
+
+void runOrders(struct Player *player);
 
 #endif //CLIENT_SERVER_H
