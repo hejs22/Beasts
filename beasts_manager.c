@@ -32,6 +32,16 @@ pthread_mutex_t lock;
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
+void leaveGame() {
+    close(this_client.network_socket);
+    this_client.connected = 0;
+    clear();
+    attron(A_BOLD);
+    mvprintw(2, 2, "Connection ended.");
+    attroff(A_BOLD);
+    getch();
+}
+
 void clientConfigure() {
     // create a socket
     this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);  // socket is created
@@ -60,20 +70,16 @@ void estabilishConnection() {
     pid.pid = getpid();
     pid.type = '0';
 
-    recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+    long res = recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+    if (res <= 0) {
+        leaveGame();
+    }
     send(this_client.network_socket, &pid, sizeof(pid), 0);
 
     clear();
     printf("Connection estabilished. ");
     this_client.server_pid = atoi(server_response);
     this_client.amount_of_beasts = 0;
-}
-
-void leaveGame() {
-    close(this_client.network_socket);
-    this_client.connected = 0;
-    printf("\n----Game ended.----\n");
-    getch();
 }
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////

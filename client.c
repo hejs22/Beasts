@@ -85,7 +85,6 @@ void estabilishConnection() {
     pid.type = '1';
 
     long res = recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
-
     if (res <= 0) {
         leaveGame();
     }
@@ -309,42 +308,60 @@ void getInfo() {
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void *keyListener(void *arg) {
+    enum PLAYERTYPE TYPE = *(enum PLAYERTYPE *) arg;
     cbreak();
     keypad(stdscr, TRUE);
 
-    while (this_client.connected) {
-        int key = getch();
-        pthread_mutex_lock(&lock);
-        switch (key) {
-            case 'Q':
-            case 'q':
-                leaveGame();
-                break;
-            case 'w':
-            case KEY_UP:
-                this_client.request[0] = MOVE;
-                this_client.request[1] = UP;
-                break;
-            case 'a':
-            case KEY_LEFT:
-                this_client.request[0] = MOVE;
-                this_client.request[1] = LEFT;
-                break;
-            case 's':
-            case KEY_DOWN:
-                this_client.request[0] = MOVE;
-                this_client.request[1] = DOWN;
-                break;
-            case 'd':
-            case KEY_RIGHT:
-                this_client.request[0] = MOVE;
-                this_client.request[1] = RIGHT;
-                break;
-            default:
-                break;
+    if (TYPE == CPU) {
+        while (this_client.connected) {
+            int key = getch();
+            pthread_mutex_lock(&lock);
+            switch (key) {
+                case 'Q':
+                case 'q':
+                    leaveGame();
+                    break;
+                default:
+                    break;
+            }
+            pthread_mutex_unlock(&lock);
         }
-        pthread_mutex_unlock(&lock);
+    } else if (TYPE == HUMAN) {
+        while (this_client.connected) {
+            int key = getch();
+            pthread_mutex_lock(&lock);
+            switch (key) {
+                case 'Q':
+                case 'q':
+                    leaveGame();
+                    break;
+                case 'w':
+                case KEY_UP:
+                    this_client.request[0] = MOVE;
+                    this_client.request[1] = UP;
+                    break;
+                case 'a':
+                case KEY_LEFT:
+                    this_client.request[0] = MOVE;
+                    this_client.request[1] = LEFT;
+                    break;
+                case 's':
+                case KEY_DOWN:
+                    this_client.request[0] = MOVE;
+                    this_client.request[1] = DOWN;
+                    break;
+                case 'd':
+                case KEY_RIGHT:
+                    this_client.request[0] = MOVE;
+                    this_client.request[1] = RIGHT;
+                    break;
+                default:
+                    break;
+            }
+            pthread_mutex_unlock(&lock);
+        }
     }
+
 
     pthread_exit(NULL);
 }
@@ -424,6 +441,9 @@ void humanClient() {
 }
 
 void gameClient() {
+    pthread_t keyboardListener;
+    pthread_create(&keyboardListener, NULL, keyListener, &this_client.playertype);
+
     if (this_client.playertype == CPU) {
         this_client.request[0] = MOVE;
         srand(time(0));
@@ -432,8 +452,6 @@ void gameClient() {
         }
 
     } else if (this_client.playertype == HUMAN) {
-        pthread_t keyboardListener;
-        pthread_create(&keyboardListener, NULL, keyListener, NULL);
         while (this_client.connected) {
             humanClient();
         }
