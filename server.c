@@ -434,8 +434,8 @@ void endGame() {
     server.up = 0;
 
     clear();
-    close(server.socket);
     close(server.beast_client);
+    close(server.socket);
 
     mvprintw(2, 2, "Server closed, all players disconnected. Press any key to continue...");
     refresh();

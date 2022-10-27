@@ -36,11 +36,11 @@ struct point {
 
 #define MAX_CLIENTS 4
 #define MAX_BEASTS 8
-#define TREASURES_AMOUNT 50
+#define TREASURES_AMOUNT 100
 #define BUSHES_AMOUNT 120
 #define MAP_HEIGHT 28
 #define MAP_WIDTH 86
-#define TURN_TIME 350000
+#define TURN_TIME 500000
 #define PLAYER_POV 5
 #define BEAST_POV 5
 #define INFO_POS_Y (MAP_HEIGHT + 2)

@@ -37,7 +37,7 @@ void leaveGame() {
     this_client.connected = 0;
     clear();
     attron(A_BOLD);
-    mvprintw(2, 2, "Connection ended.");
+    printf("Connection ended.");
     attroff(A_BOLD);
     getch();
 }
@@ -84,7 +84,6 @@ void estabilishConnection() {
 
 void getInfo() {
     long bytes_received = recv(this_client.network_socket, this_client.maps, sizeof(this_client.maps), 0);
-
     if (bytes_received <= 0) {
         leaveGame();
     }
@@ -186,6 +185,8 @@ void *handleBeast(void *arg) {
         request[2] = findPath(map);
         send(this_client.network_socket, request, sizeof(request), 0);
         getInfo();
+
+        printf("Beast %d is alive, direction: %d\n", beast_id, request[2]);
         pthread_mutex_unlock(&lock);
 
         usleep(TURN_TIME);
@@ -197,8 +198,8 @@ void handleSpawn() {
     if (this_client.amount_of_beasts < MAX_BEASTS) {
         pthread_t new;
         int beast_id = this_client.amount_of_beasts;
-        pthread_create(&new, NULL, handleBeast, &beast_id);
         this_client.amount_of_beasts++;
+        pthread_create(&new, NULL, handleBeast, &beast_id);
     }
 }
 
@@ -218,5 +219,7 @@ int main() { // client application
 
     signal(SIGUSR1, &handleSpawn);
     beastManager();
+
+    close(this_client.network_socket);
     return 0;
 }
