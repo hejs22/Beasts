@@ -64,13 +64,12 @@ void estabilishConnection() {
     }
 
     this_client.connected = 1;
-    char server_response[256];
 
     struct type_and_pid pid;
     pid.pid = getpid();
     pid.type = '0';
 
-    long res = recv(this_client.network_socket, &server_response, sizeof(server_response), 0);
+    long res = recv(this_client.network_socket, &this_client.server_pid, sizeof(this_client.server_pid), 0);
     if (res <= 0) {
         leaveGame();
     }
@@ -78,7 +77,6 @@ void estabilishConnection() {
 
     clear();
     printf("Connection estabilished. ");
-    this_client.server_pid = atoi(server_response);
     this_client.amount_of_beasts = 0;
 }
 

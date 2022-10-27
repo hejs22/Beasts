@@ -50,7 +50,6 @@ void initServer() {
     else printf("Error while setting up listen().\n");
 
     server.pid = getpid();
-    sprintf(server.message, "%d", server.pid);
     server.round = 0;
     world.active_players = 0;
     world.active_beasts = 0;
@@ -319,10 +318,8 @@ void *listenForClients(void *arg) {
 
         // check for empty client slots
         int flag = 1;
-        int i;
-
         pthread_mutex_lock(&serverLock);
-        for (i = 0; i < MAX_CLIENTS; i++) {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == -1) {
                 server.clients[i] = pid.socket;
                 flag = 0;
@@ -506,11 +503,13 @@ void *game(void *arg) {
     initUi();
     noecho();
 
+    int connected = 1;
     pthread_create(&keyListenerThread, NULL, keyListener, NULL);
 
-    while (server.up) {
+    while (connected) {
         usleep(TURN_TIME);
         pthread_mutex_lock(&serverLock);
+        connected = server.up;
 
         server.round++;
         for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -527,10 +526,12 @@ void *game(void *arg) {
         if (server.up) {
             updateInfo();
             refresh();
+        } else {
+            endGame();
         }
+
         pthread_mutex_unlock(&serverLock);
     }
-    pthread_exit(NULL);
 }
 
 int main() {
@@ -543,16 +544,17 @@ int main() {
     pthread_mutex_lock(&serverLock);
     int socket = server.socket;
     int connected = server.up;
+    unsigned long pid = server.pid;
     pthread_mutex_unlock(&serverLock);
 
     while (connected) {
-        struct type_and_pid pid;
+        struct type_and_pid client_info;
         int client_socket = accept(socket, NULL, NULL);
-        send(client_socket, server.message, sizeof(server.message), 0);
-        recv(client_socket, &pid, sizeof(pid), 0);
-        pid.socket = client_socket;
+        send(client_socket, &pid, sizeof(pid), 0);
+        recv(client_socket, &client_info, sizeof(client_info), 0);
+        client_info.socket = client_socket;
 
-        pthread_create(&listeningThread, NULL, listenForClients, &pid);
+        pthread_create(&listeningThread, NULL, listenForClients, &client_info);
 
         pthread_mutex_lock(&serverLock);
         connected = server.up;
