@@ -25,8 +25,6 @@ struct player_data_transfer {
     int coins_carried;
     int deaths;
     int round;
-    int camp_x;
-    int camp_y;
 };
 
 void send_map(struct Player *player);

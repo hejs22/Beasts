@@ -34,6 +34,7 @@ struct client_socket {
     int round;
     int camp_x;
     int camp_y;
+    int campfire_found;
 } this_client;
 
 
@@ -49,6 +50,9 @@ void clientConfigure() {
     this_client.server_address.sin_addr.s_addr = INADDR_ANY;
 
     this_client.round = -1;
+    this_client.campfire_found = 0;
+    this_client.camp_x = 0;
+    this_client.camp_y = 0;
 }
 
 void leaveGame() {
@@ -99,6 +103,12 @@ void estabilishConnection() {
 
 // USER GRAPHICAL INTERFACE ///////////////////////////////////////////////////////////////////////////////////////////
 
+void rememberCampfire(int row, int col) {
+    this_client.camp_x = row - (PLAYER_POV/2) + this_client.pos_row;
+    this_client.camp_y = col - (PLAYER_POV/2) + this_client.pos_col;
+    this_client.campfire_found = 1;
+}
+
 void printTileClient(char c, int row, int col) {
     switch (c) {
         case '#':
@@ -112,6 +122,9 @@ void printTileClient(char c, int row, int col) {
             attroff(COLOR_PAIR(11));
             break;
         case 'A':
+            if (this_client.campfire_found == 0) {
+                rememberCampfire(row, col);
+            }
             attron(COLOR_PAIR(14));
             attron(A_BOLD);
             mvprintw(1 + row, 3 + col, "A");
@@ -230,7 +243,7 @@ void printMapClient() {
 
 void printInfoClient() {
     mvprintw(2, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d    ", this_client.server_pid);
-    mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d/%d     ", this_client.camp_x, this_client.camp_y);
+    mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 26, "%d/%d     ", this_client.camp_x, this_client.camp_y);
     mvprintw(4, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d     ", this_client.round);
 
     mvprintw(6, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d/%d    ", this_client.pos_row, this_client.pos_col);
@@ -276,8 +289,6 @@ struct player_data_transfer {
     int coins_carried;
     int deaths;
     int round;
-    int camp_x;
-    int camp_y;
 };
 
 void getInfo() {
@@ -294,8 +305,6 @@ void getInfo() {
         this_client.coins_carried = data.coins_carried;
         this_client.coins_saved = data.coins_saved;
         this_client.round = data.round;
-        this_client.camp_x = data.camp_x;
-        this_client.camp_y = data.camp_y;
 
         printMapClient();
         printInfoClient();
@@ -387,7 +396,6 @@ int isCollectible(int row, int col) {
 
 enum DIRECTION scanArea() {
     // finds best and safe direction
-
     enum DIRECTION dir = STOP;
 
     if (isCollectible(1, 0)) {

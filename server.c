@@ -391,8 +391,6 @@ void sendData(const struct Player *player) {
     data.deaths = player->deaths;
 
     data.round = server.round;
-    data.camp_x = world.campfire_row;
-    data.camp_y = world.campfire_col;
 
     if (server.up) send(player->socket, (void *) &data, sizeof(data), 0);
 }
