@@ -169,7 +169,7 @@ enum DIRECTION findPath(char map[BEAST_POV][BEAST_POV]) {
         }
     }
 
-    return rand() % 4;
+    return rand() % 5;
 }
 
 void *handleBeast(void *arg) {
@@ -187,6 +187,7 @@ void *handleBeast(void *arg) {
 
         request[2] = findPath(map);
         send(this_client.network_socket, request, sizeof(request), 0);
+        getInfo();
         pthread_mutex_unlock(&lock);
 
         usleep(TURN_TIME);
