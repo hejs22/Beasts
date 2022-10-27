@@ -107,7 +107,7 @@ void disconnectSocket(int socket) {
     }
 }
 
-struct Player *addPlayerToList(int socket) {
+struct Player *addPlayerToList(int socket, unsigned long pid) {
     struct Player *player = NULL;
 
     if (isOpen(socket)) {
@@ -115,7 +115,7 @@ struct Player *addPlayerToList(int socket) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == socket) {
                 player = create_player(socket);
-                player->pid = 0;
+                player->pid = pid;
                 player->avatar = i + '1';
                 world.players[i] = player;
                 world.active_players++;
@@ -138,12 +138,14 @@ void handleDisconnection(int socket) {
 
 void *clientServerConnectionHandler(void *arg) {
     struct Player *player = NULL;
-    int socket = *(int *) arg;
+    struct type_and_pid client_info = *(struct type_and_pid *) arg;
+    int socket = client_info.socket;
+    unsigned long pid = client_info.pid;
     int connected = 1;
     char buffer[1024];
 
     pthread_mutex_lock(&serverLock);
-    player = addPlayerToList(socket);
+    player = addPlayerToList(socket, pid);
     pthread_mutex_unlock(&serverLock);
 
     // if all slots are taken disconnect and exit
@@ -341,7 +343,7 @@ void *listenForClients(void *arg) {
         // create a handler thread for each connection and remember client's socket
         send(pid.socket, "OK", 2, 0);
         pthread_t handler;
-        pthread_create(&handler, NULL, clientServerConnectionHandler, (void *) &server.clients[i]);
+        pthread_create(&handler, NULL, clientServerConnectionHandler, arg);
         pthread_exit(NULL);
 
     } else {
