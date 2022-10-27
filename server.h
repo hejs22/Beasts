@@ -27,7 +27,6 @@ struct player_data_transfer {
     int round;
 };
 
-void send_map(struct Player *player);
 
 void sendData(const struct Player *player);
 

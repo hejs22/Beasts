@@ -37,6 +37,15 @@ struct client_socket {
     int campfire_found;
 } this_client;
 
+struct player_data_transfer {
+    char map[PLAYER_POV][PLAYER_POV];
+    int pos_X;
+    int pos_Y;
+    int coins_saved;
+    int coins_carried;
+    int deaths;
+    int round;
+};
 
 // CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -280,16 +289,6 @@ void initUiClient() {
 }
 
 // DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct player_data_transfer {
-    char map[PLAYER_POV][PLAYER_POV];
-    int pos_X;
-    int pos_Y;
-    int coins_saved;
-    int coins_carried;
-    int deaths;
-    int round;
-};
 
 void getInfo() {
     struct player_data_transfer data;

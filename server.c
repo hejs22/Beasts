@@ -20,9 +20,6 @@
 pthread_t listeningThread;
 pthread_t playingThread;
 pthread_t keyListenerThread;
-pthread_mutex_t playerLock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mapLock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t beastLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t serverLock = PTHREAD_MUTEX_INITIALIZER;
 
 // SERVER INITIALIZATION ///////////////////////////////////////////////////////////////////////////////////////////////
