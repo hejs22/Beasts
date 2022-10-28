@@ -92,14 +92,14 @@ void getInfo() {
 // GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int isNotObstacle(char c) {
-    if ((c == 'A') || (c == 'X') || (c == '*')) {
+    if ((c == CAMPFIRE) || (c == WALL) || (c == BEAST_TILE)) {
         return 0;
     }
     return 1;
 }
 
 int isPlayer(char c) {
-    if ((c >= '1') && (c <= '4')) return 1;
+    if ((c >= FIRST_PLAYER) && (c <= FOURTH_PLAYER)) return 1;
     return 0;
 }
 

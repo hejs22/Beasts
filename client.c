@@ -118,73 +118,23 @@ void rememberCampfire(int row, int col) {
     this_client.campfire_found = 1;
 }
 
-void printTileClient(char c, int row, int col) {
-    switch (c) {
-        case '#':
-            attron(COLOR_PAIR(12));
-            mvprintw(1 + row, 3 + col, "#");
-            attroff(COLOR_PAIR(12));
-            break;
-        case 'X':
-            attron(COLOR_PAIR(11));
-            mvprintw(1 + row, 3 + col, "X");
-            attroff(COLOR_PAIR(11));
-            break;
-        case 'A':
-            if (this_client.campfire_found == 0) {
-                rememberCampfire(row, col);
-            }
-            attron(COLOR_PAIR(14));
-            attron(A_BOLD);
-            mvprintw(1 + row, 3 + col, "A");
-            attroff(A_BOLD);
-            attroff(COLOR_PAIR(14));
-            break;
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-            attron(COLOR_PAIR(c - '0'));
-            attron(A_BOLD);
-            mvprintw(1 + row, 3 + col, "%c", c);
-            attroff(A_BOLD);
-            attroff(COLOR_PAIR(c - '0'));
-            break;
-        case 'c':
-            attron(COLOR_PAIR(13));
-            mvprintw(1 + row, 3 + col, "c");
-            attroff(COLOR_PAIR(13));
-            break;
-        case 't':
-            attron(COLOR_PAIR(13));
-            mvprintw(1 + row, 3 + col, "t");
-            attroff(COLOR_PAIR(13));
-            break;
-        case 'T':
-            attron(COLOR_PAIR(13));
-            mvprintw(1 + row, 3 + col, "T");
-            attroff(COLOR_PAIR(13));
-            break;
-        case 'D':
-            attron(COLOR_PAIR(13));
-            mvprintw(1 + row, 3 + col, "D");
-            attroff(COLOR_PAIR(13));
-            break;
-        case ' ':
-            attron(COLOR_PAIR(15));
-            mvprintw(1 + row, 3 + col, " ");
-            attroff(COLOR_PAIR(15));
-            break;
-        case '*':
-            attron(COLOR_PAIR(14));
-            attron(A_BOLD);
-            mvprintw(1 + row, 3 + col, "*");
-            attroff(A_BOLD);
-            attroff(COLOR_PAIR(14));
-            break;
-        default:
-            break;
+void printTileClient(enum TILE TYPE, int row, int col) {
+    int pair = TYPE;
+    int bold = 0;
+
+    if ((TYPE == CAMPFIRE) && (this_client.campfire_found == 0)) {
+            rememberCampfire(row, col);
     }
+
+    if ((TYPE == CAMPFIRE) || (TYPE == BEAST_TILE) || ((TYPE >= FIRST_PLAYER) && (TYPE <= FOURTH_PLAYER))) {
+        bold = 1;
+    }
+
+    if (bold) attron(A_BOLD);
+    attron(COLOR_PAIR(pair));
+    mvprintw(1 + row, 3 + col, "%c", TYPE);
+    attroff(COLOR_PAIR(pair));
+    if (bold) attroff(A_BOLD);
 }
 
 void printLegend() {
@@ -202,43 +152,43 @@ void printLegend() {
 
     mvprintw(CLIENT_INFO_POS_Y + 2, CLIENT_INFO_POS_X, "Players - ");
     attron(A_BOLD);
-    attron(COLOR_PAIR(1));
-    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 10, "1");
-    attroff(COLOR_PAIR(1));
-    attron(COLOR_PAIR(2));
-    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 12, "2");
-    attroff(COLOR_PAIR(2));
-    attron(COLOR_PAIR(3));
-    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 14, "3");
-    attroff(COLOR_PAIR(3));
-    attron(COLOR_PAIR(4));
-    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 16, "4");
-    attroff(COLOR_PAIR(4));
+    attron(COLOR_PAIR(FIRST_PLAYER));
+    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 10, "%c", FIRST_PLAYER);
+    attroff(COLOR_PAIR(FIRST_PLAYER));
+    attron(COLOR_PAIR(SECOND_PLAYER));
+    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 12, "%c", SECOND_PLAYER);
+    attroff(COLOR_PAIR(SECOND_PLAYER));
+    attron(COLOR_PAIR(THIRD_PLAYER));
+    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 14, "%c", THIRD_PLAYER);
+    attroff(COLOR_PAIR(THIRD_PLAYER));
+    attron(COLOR_PAIR(FOURTH_PLAYER));
+    mvprintw(CLIENT_INFO_POS_Y + 2, INFO_POS_X + 16, "%c", FOURTH_PLAYER);
+    attroff(COLOR_PAIR(FOURTH_PLAYER));
     attroff(A_BOLD);
 
     mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X, "1 coin - ");
     mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 13, "10 coins - ");
     mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 28, "50 coins - ");
 
-    attron(COLOR_PAIR(13));
-    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 9, "c");
-    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 24, "t");
-    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 39, "T");
-    attroff(COLOR_PAIR(13));
+    attron(COLOR_PAIR(SMALL_TREASURE));
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 9, "%c", SMALL_TREASURE);
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 24, "%c", MEDIUM_TREASURE);
+    mvprintw(CLIENT_INFO_POS_Y + 3, CLIENT_INFO_POS_X + 39, "%c", BIG_TREASURE);
+    attroff(COLOR_PAIR(SMALL_TREASURE));
 
     mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X, "Bush - ");
     mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 13, "Campfire - ");
     mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 28, "Beast - ");
 
-    attron(COLOR_PAIR(12));
-    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 7, "#");
-    attroff(COLOR_PAIR(12));
-    attron(COLOR_PAIR(14));
+    attron(COLOR_PAIR(BUSH));
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 7, "%c", BUSH);
+    attroff(COLOR_PAIR(BUSH));
+    attron(COLOR_PAIR(BEAST_TILE));
     attron(A_BOLD);
-    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 24, "A");
-    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 36, "*");
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 24, "%c", CAMPFIRE);
+    mvprintw(CLIENT_INFO_POS_Y + 4, CLIENT_INFO_POS_X + 36, "%c", BEAST_TILE);
     attroff(A_BOLD);
-    attroff(COLOR_PAIR(14));
+    attroff(COLOR_PAIR(BEAST_TILE));
 }
 
 void printMapClient() {
@@ -272,16 +222,21 @@ void initUiClient() {
 
     if (has_colors() == TRUE) {
         start_color();
-        init_pair(1, COLOR_WHITE, COLOR_BLUE); // For players
-        init_pair(2, COLOR_WHITE, COLOR_CYAN);
-        init_pair(3, COLOR_WHITE, COLOR_MAGENTA);
-        init_pair(4, COLOR_WHITE, COLOR_RED);
+        init_pair(FIRST_PLAYER, COLOR_WHITE, COLOR_BLUE); // Blue for players
+        init_pair(SECOND_PLAYER, COLOR_WHITE, COLOR_CYAN); // Blue for players
+        init_pair(THIRD_PLAYER, COLOR_WHITE, COLOR_MAGENTA); // Blue for players
+        init_pair(FOURTH_PLAYER, COLOR_WHITE, COLOR_RED); // Blue for players
 
-        init_pair(11, COLOR_WHITE, COLOR_WHITE); // White for walls
-        init_pair(12, COLOR_GREEN, COLOR_BLACK); // Green for bushes
-        init_pair(13, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
-        init_pair(14, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
-        init_pair(15, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
+        init_pair(WALL, COLOR_WHITE, COLOR_WHITE); // White for walls
+        init_pair(BUSH, COLOR_GREEN, COLOR_BLACK); // Green for bushes
+        init_pair(SMALL_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(MEDIUM_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(BIG_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(DROPPED_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+
+        init_pair(BEAST_TILE, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
+        init_pair(CAMPFIRE, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
+        init_pair(EMPTY, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
     }
 
     clear();
@@ -368,7 +323,6 @@ void *keyListener(void *arg) {
         }
     }
 
-
     pthread_exit(NULL);
 }
 
@@ -376,8 +330,8 @@ void *keyListener(void *arg) {
 int isNotObstacle(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
-    if ((this_client.map[row][col] == 'A') || (this_client.map[row][col] == 'X') ||
-        (this_client.map[row][col] == '*')) {
+    if ((this_client.map[row][col] == CAMPFIRE) || (this_client.map[row][col] == WALL) ||
+        (this_client.map[row][col] == BEAST_TILE)) {
         return 0;
     }
     return 1;
@@ -386,8 +340,8 @@ int isNotObstacle(int row, int col) {
 int isCollectible(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
-    if ((this_client.map[row][col] == 'D') || (this_client.map[row][col] == 'T') ||
-        (this_client.map[row][col] == 't') || (this_client.map[row][col] == 'c')) {
+    if ((this_client.map[row][col] == DROPPED_TREASURE) || (this_client.map[row][col] == BIG_TREASURE) ||
+        (this_client.map[row][col] == MEDIUM_TREASURE) || (this_client.map[row][col] == SMALL_TREASURE)) {
         return 1;
     }
     return 0;

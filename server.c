@@ -236,7 +236,7 @@ void sendBeastData(const struct Beast *beast) {
                 map[row][col] = world.map[row - (BEAST_POV / 2) + beast->pos_row][col - (BEAST_POV / 2) +
                                                                                             beast->pos_col];
             } else {
-                map[row][col] = 'X';
+                map[row][col] = WALL;
             }
         }
     }
@@ -381,7 +381,7 @@ void sendData(const struct Player *player) {
                 data.map[row][col] = world.map[row - (PLAYER_POV / 2) + player->pos_row][col - (PLAYER_POV / 2) +
                                                                                          player->pos_col];
             } else {
-                data.map[row][col] = 'X';
+                data.map[row][col] = WALL;
             }
         }
     }
