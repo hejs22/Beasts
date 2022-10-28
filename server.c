@@ -59,16 +59,21 @@ void initUi() {
     // create color pairs used in game
     if (has_colors() == TRUE) {
         start_color();
-        init_pair(1, COLOR_WHITE, COLOR_BLUE); // Blue for players
-        init_pair(2, COLOR_WHITE, COLOR_CYAN); // Blue for players
-        init_pair(3, COLOR_WHITE, COLOR_MAGENTA); // Blue for players
-        init_pair(4, COLOR_WHITE, COLOR_RED); // Blue for players
+        init_pair(FIRST_PLAYER, COLOR_WHITE, COLOR_BLUE); // Blue for players
+        init_pair(SECOND_PLAYER, COLOR_WHITE, COLOR_CYAN); // Blue for players
+        init_pair(THIRD_PLAYER, COLOR_WHITE, COLOR_MAGENTA); // Blue for players
+        init_pair(FOURTH_PLAYER, COLOR_WHITE, COLOR_RED); // Blue for players
 
-        init_pair(11, COLOR_WHITE, COLOR_WHITE); // White for walls
-        init_pair(12, COLOR_GREEN, COLOR_BLACK); // Green for bushes
-        init_pair(13, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
-        init_pair(14, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
-        init_pair(15, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
+        init_pair(WALL, COLOR_WHITE, COLOR_WHITE); // White for walls
+        init_pair(BUSH, COLOR_GREEN, COLOR_BLACK); // Green for bushes
+        init_pair(SMALL_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(MEDIUM_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(BIG_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+        init_pair(DROPPED_TREASURE, COLOR_YELLOW, COLOR_BLACK); // Yellow for treasures
+
+        init_pair(BEAST_TILE, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
+        init_pair(CAMPFIRE, COLOR_RED, COLOR_BLACK); // Red for beasts and campsites
+        init_pair(EMPTY, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
     }
 
     // Printing server's view

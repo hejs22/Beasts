@@ -23,7 +23,7 @@ void loadMap() {  // loads map from txt file into global variable
 
     while (!feof(mapfile)) {
         fscanf(mapfile, "%c", &c);
-        if (c == 'X' || c == '#' || c == ' ' || c == 'A') {
+        if ((c == WALL) || (c == BUSH) || (c == EMPTY) || (c == CAMPFIRE)) {
             world.map[row][col] = c;
             world.treasure_map[row][col] = 0;
             col++;
@@ -41,13 +41,13 @@ void loadMap() {  // loads map from txt file into global variable
 void printMap() {  // prints map on console based on world.map[][]
     for (int row = 0; row < MAP_HEIGHT; row++) {
         for (int col = 0; col < MAP_WIDTH; col++) {
-            if (world.map[row][col] == 'X') {
+            if (world.map[row][col] == WALL) {
                 printTile(WALL, row, col);
-            } else if (world.map[row][col] == '#') {
+            } else if (world.map[row][col] == BUSH) {
                 printTile(BUSH, row, col);
-            } else if (world.map[row][col] == ' ') {
+            } else if (world.map[row][col] == EMPTY) {
                 printTile(EMPTY, row, col);
-            } else if (world.map[row][col] == 'A') {
+            } else if (world.map[row][col] == CAMPFIRE) {
                 printTile(CAMPFIRE, row, col);
                 world.campfire_row = row;
                 world.campfire_col = col;
@@ -58,7 +58,9 @@ void printMap() {  // prints map on console based on world.map[][]
 
 void printInitialObjects() {
     // function runs at the beginning, creates bushes and coins in random places
-    for (int i = 0; i < TREASURES_AMOUNT; i++) createObject(rand() % 3 + 1);
+    for (int i = 0; i < TREASURES_AMOUNT / 2; i++) createObject(SMALL_TREASURE);
+    for (int i = 0; i < TREASURES_AMOUNT / 4; i++) createObject(MEDIUM_TREASURE);
+    for (int i = 0; i < TREASURES_AMOUNT / 4; i++) createObject(BIG_TREASURE);
     for (int i = 0; i < BUSHES_AMOUNT; i++) createObject(BUSH);
 }
 
@@ -111,104 +113,76 @@ void printInfo() {
 
     mvprintw(INFO_POS_Y + 13, INFO_POS_X, "Players - ");
     attron(A_BOLD);
-    attron(COLOR_PAIR(1));
-    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 10, "1");
-    attroff(COLOR_PAIR(1));
-    attron(COLOR_PAIR(2));
-    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 12, "2");
-    attroff(COLOR_PAIR(2));
-    attron(COLOR_PAIR(3));
-    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 14, "3");
-    attroff(COLOR_PAIR(3));
-    attron(COLOR_PAIR(4));
-    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 16, "4");
-    attroff(COLOR_PAIR(4));
+    attron(COLOR_PAIR(FIRST_PLAYER));
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 10, "%c", FIRST_PLAYER);
+    attroff(COLOR_PAIR(FIRST_PLAYER));
+    attron(COLOR_PAIR(SECOND_PLAYER));
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 12, "%c", SECOND_PLAYER);
+    attroff(COLOR_PAIR(SECOND_PLAYER));
+    attron(COLOR_PAIR(THIRD_PLAYER));
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 14, "%c", THIRD_PLAYER);
+    attroff(COLOR_PAIR(THIRD_PLAYER));
+    attron(COLOR_PAIR(FOURTH_PLAYER));
+    mvprintw(INFO_POS_Y + 13, INFO_POS_X + 16, "%c", FOURTH_PLAYER);
+    attroff(COLOR_PAIR(FOURTH_PLAYER));
     attroff(A_BOLD);
 
     mvprintw(INFO_POS_Y + 14, INFO_POS_X, "1 coin - ");
     mvprintw(INFO_POS_Y + 14, INFO_POS_X + 13, "10 coins - ");
     mvprintw(INFO_POS_Y + 14, INFO_POS_X + 28, "50 coins - ");
 
-    attron(COLOR_PAIR(13));
-    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 9, "c");
-    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 24, "t");
-    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 39, "T");
-    attroff(COLOR_PAIR(13));
+    attron(COLOR_PAIR(BIG_TREASURE));
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 9, "%c", SMALL_TREASURE);
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 24, "%c", MEDIUM_TREASURE);
+    mvprintw(INFO_POS_Y + 14, INFO_POS_X + 39, "%c", BIG_TREASURE);
+    attroff(COLOR_PAIR(BIG_TREASURE));
 
     mvprintw(INFO_POS_Y + 15, INFO_POS_X, "Bush - ");
     mvprintw(INFO_POS_Y + 15, INFO_POS_X + 13, "Campfire - ");
     mvprintw(INFO_POS_Y + 15, INFO_POS_X + 28, "Beast - ");
 
-    attron(COLOR_PAIR(12));
-    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 7, "#");
-    attroff(COLOR_PAIR(12));
-    attron(COLOR_PAIR(14));
+    attron(COLOR_PAIR(BUSH));
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 7, "%c", BUSH);
+    attroff(COLOR_PAIR(BUSH));
+    attron(COLOR_PAIR(CAMPFIRE));
     attron(A_BOLD);
-    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 24, "A");
-    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 36, "*");
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 24, "%c", CAMPFIRE);
+    mvprintw(INFO_POS_Y + 15, INFO_POS_X + 36, "%c", BEAST_TILE);
     attroff(A_BOLD);
-    attroff(COLOR_PAIR(14));
+    attroff(COLOR_PAIR(CAMPFIRE));
 
     updateInfo();
 }
 
 void printTile(enum TILE TYPE, int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return;
-    if (TYPE == BUSH) {
-        attron(COLOR_PAIR(12));
-        world.map[row][col] = '#';
-        mvprintw(1 + row, 3 + col, "#");
-        attroff(COLOR_PAIR(12));
-    } else if (TYPE == SMALL_TREASURE) {
-        attron(COLOR_PAIR(13));
-        world.map[row][col] = 'c';
-        mvprintw(1 + row, 3 + col, "c");
-        attroff(COLOR_PAIR(13));
-    } else if (TYPE == MEDIUM_TREASURE) {
-        attron(COLOR_PAIR(13));
-        world.map[row][col] = 't';
-        mvprintw(1 + row, 3 + col, "t");
-        attroff(COLOR_PAIR(13));
-    } else if (TYPE == BIG_TREASURE) {
-        attron(COLOR_PAIR(13));
-        world.map[row][col] = 'T';
-        mvprintw(1 + row, 3 + col, "T");
-        attroff(COLOR_PAIR(13));
-    } else if (TYPE == DROPPED_TREASURE) {
-        attron(COLOR_PAIR(13));
-        world.map[row][col] = 'D';
-        mvprintw(1 + row, 3 + col, "D");
-        attroff(COLOR_PAIR(13));
-    } else if (TYPE == WALL) {
-        attron(COLOR_PAIR(11));
-        world.map[row][col] = 'X';
-        mvprintw(1 + row, 3 + col, "X");
-        attroff(COLOR_PAIR(11));
-    } else if (TYPE == EMPTY) {
-        if (world.map[row][col] != '#') {
-            attron(COLOR_PAIR(15));
-            world.map[row][col] = ' ';
-            mvprintw(1 + row, 3 + col, " ");
-            attroff(COLOR_PAIR(15));
+    int pair = TYPE;
+    int bold = 0;
+    int hidden = 0;
+
+    if (TYPE == EMPTY) {
+        hidden = 1;
+        if (world.map[row][col] != BUSH) {
+            hidden = 0;
         }
     }   else if (TYPE == CAMPFIRE) {
-        attron(COLOR_PAIR(14));
-        attron(A_BOLD);
-        world.map[row][col] = 'A';
-        mvprintw(1 + row, 3 + col, "A");
-        attroff(A_BOLD);
-        attroff(COLOR_PAIR(14));
+        bold = 1;
     }   else if (TYPE == BEAST_TILE) {
-        attron(COLOR_PAIR(14));
-        attron(A_BOLD);
-        if (world.map[row][col] != '#') {
-            world.map[row][col] = '*';
-            mvprintw(1 + row, 3 + col, "*");
+        hidden = 1;
+        if (world.map[row][col] != BUSH) {
+            hidden = 0;
+            bold = 1;
         }
-        attroff(A_BOLD);
-        attroff(COLOR_PAIR(14));
     }
 
+    if (!hidden) {
+        attron(COLOR_PAIR(pair));
+        if (bold) attron(A_BOLD);
+        world.map[row][col] = TYPE;
+        mvprintw(1 + row, 3 + col, "%c", TYPE);
+        if (bold) attroff(A_BOLD);
+        attroff(COLOR_PAIR(pair));
+    }
 }
 
 void createObject(enum TILE TYPE) {
@@ -216,7 +190,7 @@ void createObject(enum TILE TYPE) {
     while (flag) {
         int rand_col = rand() % MAP_WIDTH;
         int rand_row = rand() % MAP_HEIGHT;
-        if (world.map[rand_row][rand_col] == ' ') {
+        if (world.map[rand_row][rand_col] == EMPTY) {
             printTile(TYPE, rand_row, rand_col);
             flag = 0;
         }
@@ -231,18 +205,9 @@ int findTreasureAt(int row, int col) {
 
 enum TILE getTileAt(int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return -1;
-    if (world.map[row][col] == '#') {
-        return BUSH;
-    } else if (world.map[row][col] == ' ') {
-        return EMPTY;
-    } else if (world.map[row][col] == 'c') {
-        return SMALL_TREASURE;
-    } else if (world.map[row][col] == 't') {
-        return MEDIUM_TREASURE;
-    } else if (world.map[row][col] == 'T') {
-        return BIG_TREASURE;
-    } else if (world.map[row][col] == 'D') {
-        return DROPPED_TREASURE;
+    // only checking these tiles, because if beast collides with a player, it kills it. Collision with another beast or wall is forbidden.
+    if ((world.map[row][col] == BUSH) || (world.map[row][col] == EMPTY) || (world.map[row][col] == SMALL_TREASURE) || (world.map[row][col] == MEDIUM_TREASURE) || (world.map[row][col] == BIG_TREASURE) || (world.map[row][col] == DROPPED_TREASURE)) {
+        return world.map[row][col];
     }
     return -1;
 }
@@ -254,15 +219,7 @@ void refreshScreen() {
     updateInfo();
     for (int row = 0; row < MAP_HEIGHT; row++) {
         for (int col = 0; col < MAP_WIDTH; col++) {
-            if (world.map[row][col] == 'c') {
-                printTile(SMALL_TREASURE, row, col);
-            } else if (world.map[row][col] == 't') {
-                printTile(MEDIUM_TREASURE, row, col);
-            } else if (world.map[row][col] == 'T') {
-                printTile(BIG_TREASURE, row, col);
-            } else if (world.map[row][col] == 'D') {
-                printTile(DROPPED_TREASURE, row, col);
-            }
+            printTile(world.map[row][col], row, col);
         }
     }
 }

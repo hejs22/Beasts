@@ -8,41 +8,40 @@
 #include "player.h"
 
 void printPlayer(const struct Player *player, int row, int col) {
-    attron(COLOR_PAIR(player->avatar - '0'));
+    attron(COLOR_PAIR(player->avatar));
     attron(A_BOLD);
-    if (world.map[row][col] != '#') {
+    if (world.map[row][col] != BUSH) {
         mvprintw(1 + row, 3 + col, "%c", player->avatar);
         world.map[row][col] = player->avatar;
     }
     attroff(A_BOLD);
-    attroff(COLOR_PAIR(player->avatar - '0'));
+    attroff(COLOR_PAIR(player->avatar));
 }
 
 void handleCollisionPlayer(struct Player *player, int row, int col) {
     // checks multiple collision events and handles them
 
-    if (world.map[row][col] == 'c') player->coins_carried += 1;
-    else if (world.map[row][col] == 't') player->coins_carried += 10;
-    else if (world.map[row][col] == 'T') player->coins_carried += 50;
-    else if (world.map[row][col] == 'D') {
+    if (world.map[row][col] == SMALL_TREASURE) player->coins_carried += 1;
+    else if (world.map[row][col] == MEDIUM_TREASURE) player->coins_carried += 10;
+    else if (world.map[row][col] == BIG_TREASURE) player->coins_carried += 50;
+    else if (world.map[row][col] == DROPPED_TREASURE) {
         player->coins_carried += findTreasureAt(row, col);
-    } else if ((world.map[row + 1][col] == 'A') || (world.map[row - 1][col] == 'A') ||
-               (world.map[row][col + 1] == 'A') || (world.map[row][col - 1] == 'A') ||
-               (world.map[row + 1][col + 1] == 'A') || (world.map[row - 1][col - 1] == 'A') ||
-               (world.map[row - 1][col + 1] == 'A') || (world.map[row + 1][col - 1] == 'A')) {
+    } else if ((world.map[row + 1][col] == CAMPFIRE) || (world.map[row - 1][col] == CAMPFIRE) ||
+               (world.map[row][col + 1] == CAMPFIRE) || (world.map[row][col - 1] == CAMPFIRE) ||
+               (world.map[row + 1][col + 1] == CAMPFIRE) || (world.map[row - 1][col - 1] == CAMPFIRE) ||
+               (world.map[row - 1][col + 1] == CAMPFIRE) || (world.map[row + 1][col - 1] == CAMPFIRE)) {
         player->coins_saved += player->coins_carried;
         player->coins_carried = 0;
-    } else if (world.map[row][col] == '*') {
+    } else if (world.map[row][col] == BEAST_TILE) {
         killPlayer(player);
-    } else if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') ||
-               (world.map[row][col] == '4')) {
+    } else if ((world.map[row][col] >= FIRST_PLAYER) && (world.map[row][col] <= FOURTH_PLAYER)) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if ((world.players[i] != NULL) && (world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
                 killPlayer(world.players[i]);
             }
         }
         killPlayer(player);
-    } else if (world.map[row][col] == '#') {
+    } else if (world.map[row][col] == BUSH) {
         player->bush = 1;
     }
 }
@@ -50,7 +49,7 @@ void handleCollisionPlayer(struct Player *player, int row, int col) {
 
 int validMove(int row, int col) {
     if ((row < 0) || (col < 0) || (col >= MAP_WIDTH) || (row >= MAP_HEIGHT)) return 0;
-    if ((world.map[row][col] == 'X') || (world.map[row][col] == 'A')) return 0;
+    if ((world.map[row][col] == WALL) || (world.map[row][col] == CAMPFIRE)) return 0;
     return 1;
 }
 
@@ -106,7 +105,7 @@ struct Player *create_player(int socket) {
     while (flag) {
         rand_col = rand() % MAP_WIDTH;
         rand_row = rand() % MAP_HEIGHT;
-        if (world.map[rand_row][rand_col] == ' ') {
+        if (world.map[rand_row][rand_col] == EMPTY) {
             printPlayer(new, rand_row, rand_col);
             flag = 0;
         }
@@ -127,10 +126,10 @@ struct Player *create_player(int socket) {
 
 void killPlayer(struct Player *player) {
     if (player->bush) {
-        world.map[player->pos_row][player->pos_col] = '#';
+        world.map[player->pos_row][player->pos_col] = BUSH;
         printTile(BUSH, player->pos_row, player->pos_col);
     } else {
-        world.map[player->pos_row][player->pos_col] = ' ';
+        world.map[player->pos_row][player->pos_col] = EMPTY;
         printTile(EMPTY, player->pos_row, player->pos_col);
     }
 

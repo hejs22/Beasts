@@ -9,7 +9,7 @@
 
 int validMoveBeasts(int row, int col) {
     if ((row < 0) || (col < 0) || (col >= MAP_WIDTH) || (row >= MAP_HEIGHT)) return 0;
-    if ((world.map[row][col] == 'X') || (world.map[row][col] == 'A') || (world.map[row][col] == '*')) return 0;
+    if ((world.map[row][col] == WALL) || (world.map[row][col] == CAMPFIRE) || (world.map[row][col] == BEAST_TILE)) return 0;
     return 1;
 }
 
@@ -64,7 +64,7 @@ struct Beast *createBeast() {
     while (flag) {
         rand_col = rand() % MAP_WIDTH;
         rand_row = rand() % MAP_HEIGHT;
-        if (world.map[rand_row][rand_col] == ' ') {
+        if (world.map[rand_row][rand_col] == EMPTY) {
             printTile(BEAST_TILE, rand_row, rand_col);
             flag = 0;
         }
@@ -81,14 +81,13 @@ struct Beast *createBeast() {
 void handleCollisionBeast(struct Beast *beast, int row, int col) {
     // checks multiple collision events and handles them
 
-    if ((world.map[row][col] == '1') || (world.map[row][col] == '2') || (world.map[row][col] == '3') ||
-        (world.map[row][col] == '4')) {
+    if ((world.map[row][col] >= FIRST_PLAYER) && (world.map[row][col] <= FOURTH_PLAYER)) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if ((world.players[i] != NULL) && (world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
                     killPlayer(world.players[i]);
             }
         }
-    } else if (world.map[row][col] == '#') {
+    } else if (world.map[row][col] == BUSH) {
         beast->bush = 1;
     }
 }
