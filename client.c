@@ -77,13 +77,13 @@ void leaveGame() {
     }
     attroff(A_BOLD);
     getch();
+    exit(0);
 }
 
 void estabilishConnection() {
     int i = 0;
     while (i < 10) {
-        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address,
-                                        sizeof(this_client.server_address));
+        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address, sizeof(this_client.server_address));
         if (connection_status >= 0) break;
         printf("Waiting for server initialization...\n");
         usleep(TURN_TIME * 5);
@@ -113,6 +113,7 @@ void estabilishConnection() {
 // USER GRAPHICAL INTERFACE ///////////////////////////////////////////////////////////////////////////////////////////
 
 void rememberCampfire(int row, int col) {
+    // remember coordinates of campfire if seen for the first time
     this_client.camp_x = row - (PLAYER_POV/2) + this_client.pos_row;
     this_client.camp_y = col - (PLAYER_POV/2) + this_client.pos_col;
     this_client.campfire_found = 1;
@@ -274,6 +275,7 @@ void *keyListener(void *arg) {
     keypad(stdscr, TRUE);
 
     if (TYPE == CPU) {
+        // CPU client can disconnect with q
         while (this_client.connected) {
             int key = getch();
             pthread_mutex_lock(&lock);
@@ -288,6 +290,7 @@ void *keyListener(void *arg) {
             pthread_mutex_unlock(&lock);
         }
     } else if (TYPE == HUMAN) {
+        // HUMAN client can move with arrows, wsad, or disconnect with q
         while (this_client.connected) {
             int key = getch();
             pthread_mutex_lock(&lock);
@@ -330,8 +333,7 @@ void *keyListener(void *arg) {
 int isNotObstacle(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
-    if ((this_client.map[row][col] == CAMPFIRE) || (this_client.map[row][col] == WALL) ||
-        (this_client.map[row][col] == BEAST_TILE)) {
+    if ((this_client.map[row][col] == CAMPFIRE) || (this_client.map[row][col] == WALL) || (this_client.map[row][col] == BEAST_TILE)) {
         return 0;
     }
     return 1;
@@ -348,7 +350,7 @@ int isCollectible(int row, int col) {
 }
 
 enum DIRECTION scanArea() {
-    // finds best and safe direction
+    // find relatively safe direction, if there are no dangers nearby, orders to collect coins
     enum DIRECTION dir = STOP;
 
     if (isCollectible(1, 0)) {

@@ -8,6 +8,7 @@
 #include "player.h"
 
 void printPlayer(const struct Player *player, int row, int col) {
+    // prints players avatars on map and updates world.map[][]
     attron(COLOR_PAIR(player->avatar));
     attron(A_BOLD);
     if (world.map[row][col] != BUSH) {
@@ -21,6 +22,7 @@ void printPlayer(const struct Player *player, int row, int col) {
 void handleCollisionPlayer(struct Player *player, int row, int col) {
     // checks multiple collision events and handles them
 
+    // if stepped on treasures, collect them
     if (world.map[row][col] == SMALL_TREASURE) player->coins_carried += 1;
     else if (world.map[row][col] == MEDIUM_TREASURE) player->coins_carried += 10;
     else if (world.map[row][col] == BIG_TREASURE) player->coins_carried += 50;
@@ -30,11 +32,14 @@ void handleCollisionPlayer(struct Player *player, int row, int col) {
                (world.map[row][col + 1] == CAMPFIRE) || (world.map[row][col - 1] == CAMPFIRE) ||
                (world.map[row + 1][col + 1] == CAMPFIRE) || (world.map[row - 1][col - 1] == CAMPFIRE) ||
                (world.map[row - 1][col + 1] == CAMPFIRE) || (world.map[row + 1][col - 1] == CAMPFIRE)) {
+        // if campfire is nearby, save player's coins
         player->coins_saved += player->coins_carried;
         player->coins_carried = 0;
     } else if (world.map[row][col] == BEAST_TILE) {
+        // if stepped on beast, die
         killPlayer(player);
     } else if ((world.map[row][col] >= FIRST_PLAYER) && (world.map[row][col] <= FOURTH_PLAYER)) {
+        // if stepped on another player, both dies
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if ((world.players[i] != NULL) && (world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
                 killPlayer(world.players[i]);
@@ -42,6 +47,7 @@ void handleCollisionPlayer(struct Player *player, int row, int col) {
         }
         killPlayer(player);
     } else if (world.map[row][col] == BUSH) {
+        // if stepped on bush, wait 1 turn
         player->bush = 1;
     }
 }
@@ -102,6 +108,7 @@ struct Player *create_player(int socket) {
     int rand_row;
     new->avatar = 0;
 
+    // choose random spawn point
     while (flag) {
         rand_col = rand() % MAP_WIDTH;
         rand_row = rand() % MAP_HEIGHT;
@@ -125,6 +132,7 @@ struct Player *create_player(int socket) {
 }
 
 void killPlayer(struct Player *player) {
+    // kill player, if he was hiding in bush, print bush in place of his deaths, else print empty space
     if (player->bush) {
         world.map[player->pos_row][player->pos_col] = BUSH;
         printTile(BUSH, player->pos_row, player->pos_col);

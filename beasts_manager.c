@@ -40,6 +40,7 @@ void leaveGame() {
     printf("Connection ended.");
     attroff(A_BOLD);
     getch();
+    exit(1);
 }
 
 void clientConfigure() {
@@ -104,7 +105,7 @@ int isPlayer(char c) {
 }
 
 struct point scanArea(char map[BEAST_POV][BEAST_POV]) {
-    // returns location of nearest player
+    // returns location of player closest to beast, if there is any
 
     int row = BEAST_POV / 2;
     int col = BEAST_POV / 2;
@@ -166,6 +167,7 @@ enum DIRECTION findPath(char map[BEAST_POV][BEAST_POV]) {
         }
     }
 
+    // if there is no player nearby, choose random direction or wait
     return rand() % 5;
 }
 
@@ -176,10 +178,12 @@ void *handleBeast(void *arg) {
     while (this_client.connected) {
         pthread_mutex_lock(&lock);
 
+        // packs request into 3 chars array, which consists of beast's id, request, which is always MOVE and direction
         request[0] = beast_id;
         request[1] = MOVE;
 
         char map[BEAST_POV][BEAST_POV];
+        // gets map from client data
         memcpy(map, this_client.maps[beast_id], sizeof(this_client.maps[beast_id]));
 
         request[2] = findPath(map);
@@ -217,6 +221,7 @@ int main() { // client application
     estabilishConnection();
     srand(time(0));
 
+    // when SIGUSR1 arrives, create new beast
     signal(SIGUSR1, &handleSpawn);
     beastManager();
 
