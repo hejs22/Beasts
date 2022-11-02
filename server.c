@@ -22,31 +22,28 @@ pthread_t playingThread;
 pthread_t keyListenerThread;
 pthread_mutex_t serverLock = PTHREAD_MUTEX_INITIALIZER;
 
-// SERVER INITIALIZATION ///////////////////////////////////////////////////////////////////////////////////////////////
 
+/*
+ * @ brief sets up server parameters
+ * @ return -
+ */
 void initServer() {
-    // set server parameters
     server.up = 0;
     server.number_of_clients = MAX_CLIENTS;
 
-
-    // create the server socket
     server.socket = socket(AF_INET, SOCK_STREAM, 0);
     for (int i = 0; i < MAX_CLIENTS; i++) server.clients[i] = -1;
     server.beast_client = -1;
 
-    // define server address
     server.address.sin_port = htons(9002);
     server.address.sin_family = AF_INET;
     server.address.sin_addr.s_addr = INADDR_ANY;
 
-    // bind socket to specified IP and PORT
     bind(server.socket, (struct sockaddr *) &(server.address), sizeof(server.address));
 
     if (listen(server.socket, MAX_CLIENTS) == 0) printf("Listening...\n");
     else printf("Error while setting up listen().\n");
 
-    // initialize more parameters
     server.pid = getpid();
     server.round = 0;
     world.active_players = 0;
@@ -54,6 +51,10 @@ void initServer() {
     server.up = 1;
 };
 
+/*
+ * @ brief inits screen and colors, prints starting info
+ * @ return -
+ */
 void initUi() {
     initscr();
 
@@ -77,16 +78,17 @@ void initUi() {
         init_pair(EMPTY, COLOR_BLACK, COLOR_BLACK); // Black for empty spaces
     }
 
-    // Printing server's view
     printMap();
     printInitialObjects();
     printInfo();
     refresh();
 }
 
-// CONNECTION MANAGEMENT ///////////////////////////////////////////////////////////////////////////////////////////////
-
-
+/*
+ * @ brief checks if socket is still open
+ * @ param socket that needs to be checked
+ * @ return 1 if connection closed, 0 if socket is active
+ */
 int isOpen(int socket) {
     // check if socket is still empty
     char c;
@@ -95,8 +97,12 @@ int isOpen(int socket) {
     return 0;
 }
 
+/*
+ * @ brief deletes socket from sockets array and closes it
+ * @ param socket that needs to be deleted
+ * @ return -
+ */
 void disconnectSocket(int socket) {
-    // delete socket from sockets array and close it
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (server.clients[i] == socket) {
             server.clients[i] = -1;
@@ -110,11 +116,16 @@ void disconnectSocket(int socket) {
     }
 }
 
+/*
+ * @ brief creates new player and saves it to array
+ * @ param socket that player is connected to
+ * @ param process id of client
+ * @ return pointer to player struct or NULL if all slots are taken
+ */
 struct Player *addPlayerToList(int socket, unsigned long pid) {
     struct Player *player = NULL;
 
     if (isOpen(socket)) {
-        // check for empty slots, if any is found create player
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (server.clients[i] == socket) {
                 player = create_player(socket);
@@ -129,6 +140,11 @@ struct Player *addPlayerToList(int socket, unsigned long pid) {
     return player;
 }
 
+/*
+ * @ brief disconnects socket of player and deletes it's structure
+ * @ param socket that needs to be disonnected
+ * @ return -
+ */
 void handleDisconnection(int socket) {
     // check which socket belongs to player, delete his structure and disconnect him
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -140,6 +156,11 @@ void handleDisconnection(int socket) {
     }
 }
 
+/*
+ * @ brief handles server-client connection, sends map and receives requests
+ * @ param address of structure with player's socket, process id
+ * @ return NULL on exit
+ */
 void *clientServerConnectionHandler(void *arg) {
     struct Player *player = NULL;
     struct type_and_pid client_info = *(struct type_and_pid *) arg;
@@ -152,7 +173,6 @@ void *clientServerConnectionHandler(void *arg) {
     player = addPlayerToList(socket, pid);
     pthread_mutex_unlock(&serverLock);
 
-    // if all slots are taken disconnect and exit
     if (!player) {
         pthread_mutex_lock(&serverLock);
         disconnectSocket(socket);
@@ -161,8 +181,6 @@ void *clientServerConnectionHandler(void *arg) {
     }
 
     while (connected) {
-        // if client isn't connected, disconnect his socket and free his Player structure
-
         pthread_mutex_lock(&serverLock);
         if (!isOpen(socket)) {
             handleDisconnection(socket);
@@ -183,7 +201,6 @@ void *clientServerConnectionHandler(void *arg) {
             pthread_exit(NULL);
         }
 
-        // read request from buffer and handle it
         enum COMMAND request = (enum COMMAND) buffer[0];
         int parameter = (int) buffer[1];
 
@@ -236,8 +253,12 @@ void *clientServerConnectionHandler(void *arg) {
     pthread_exit(NULL);
 }
 
+/*
+ * @ brief sends map of beast's surroundings
+ * @ param pointer to beast's structure
+ * @ return -
+ */
 void sendBeastData(const struct Beast *beast) {
-    // packs BEAST_POV x BEAST_POV area around beast and sends it to beast client
     char map[BEAST_POV][BEAST_POV];
     for (int row = 0; row < BEAST_POV; row++) {
         for (int col = 0; col < BEAST_POV; col++) {
@@ -253,7 +274,11 @@ void sendBeastData(const struct Beast *beast) {
     send(server.beast_client, map, sizeof(map), 0);
 }
 
-
+/*
+ * @ brief handles server-beasts connection, sends map and receives requests
+ * @ param beasts manager socket
+ * @ return NULL on exit
+ */
 void *beastsConnectionHandler(void *arg) {
     int socket = *(int *) arg;
     int connected = 1;
@@ -323,10 +348,15 @@ void *beastsConnectionHandler(void *arg) {
     pthread_exit(NULL);
 }
 
+/*
+ * @ brief handles newly connected client and proceeds to create new thread handling its connection
+ * @ param pointer to struct that consists of process id, socket and client's type
+ * @ return NULL
+ */
 void *listenForClients(void *arg) {
     struct type_and_pid pid = *(struct type_and_pid *) arg;
 
-    if (pid.type == '1') { // this is player's client
+    if (pid.type == '1') {
 
         int flag = 1;
         pthread_mutex_lock(&serverLock);
@@ -373,13 +403,13 @@ void *listenForClients(void *arg) {
     }
 }
 
-// DATA TRANSFER ///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
+/*
+ * @ brief sends pack of player's info - surroundings, coordinates, coins etc.
+ * @ param pointer to player's struct
+ * @ return -
+ */
 void sendData(const struct Player *player) {
     struct player_data_transfer data;
-    // pack all info which player needs into 1 structure and send it
-
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
             if (isPositionValid(row - (PLAYER_POV / 2) + player->pos_row, col - (PLAYER_POV / 2) + player->pos_col)) {
@@ -401,9 +431,11 @@ void sendData(const struct Player *player) {
     if (server.up) send(player->socket, (void *) &data, sizeof(data), 0);
 }
 
-
-// GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief checks player's queued request and handles it
+ * @ param pointer to player's struct
+ * @ return -
+ */
 void runOrders(struct Player *player) {
     // if socket is still open, handles queued request from clients
     if (isOpen(player->socket)) {
@@ -421,19 +453,33 @@ void runOrders(struct Player *player) {
     player->command = WAIT;
 }
 
+/*
+ * @ brief checks beast's queued request and handles it
+ * @ param pointer to beast's struct
+ * @ return -
+ */
 void runOrdersBeast(struct Beast *beast) {
-    // if socket is still open, handles queued request from beast_manager
     if (beast->command == MOVE) {
         moveBeast(beast, beast->argument);
     }
 }
 
+/*
+ * @ brief checks if desired position is within map bounds
+ * @ param row of map array
+ * @ param col of map array
+ * @ return 0 if position is invalid, 1 if valid
+ */
 int isPositionValid(int row, int col) {
     // checks map boundaries
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return 0;
     return 1;
 }
 
+/*
+ * @ brief deallocates all resources, closes sockets and exits
+ * @ return -
+ */
 void endGame() {
     // delete all connected players and close their sockets
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -455,8 +501,11 @@ void endGame() {
     exit(0);
 }
 
+/*
+ * @ brief creates new beast structure and signals beast_manager that new beast should be taken care of
+ * @ return -
+ */
 void spawnBeast() {
-    // if there is still empty slot for a beast, spawn it and send SIGUSR1 signal to beast manager that new thread should be spawned
     if ((world.active_beasts < MAX_BEASTS) && (server.beast_client != -1)) {
         kill(server.beasts_pid, SIGUSR1);
         for (int i = 0; i < MAX_BEASTS; i++) {
@@ -469,6 +518,10 @@ void spawnBeast() {
     }
 }
 
+/*
+ * @ brief listens for input and handles it
+ * @ return NULL
+ */
 void *keyListener(void *arg) {
     noecho();
     int connected = 1;
@@ -509,8 +562,11 @@ void *keyListener(void *arg) {
     pthread_exit(NULL);
 }
 
+/*
+ * @ brief main game loop, runs all connected entities requests and updates screen
+ * @ return NULL
+ */
 void *game(void *arg) {
-    // thread with game clock, handles requests each turn and updates screen
     initUi();
     noecho();
 

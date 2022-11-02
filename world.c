@@ -10,11 +10,14 @@
 #include "server.h"
 #include "player.h"
 
-
-void loadMap() {  // loads map from txt file into global variable
+/*
+ * @ brief loads map from MAP_FILENAME to world.map
+ * @ return 0 on success, 1 on failure
+ */
+int loadMap() {
     FILE *mapfile = fopen(MAP_FILENAME, "r");
     if (mapfile == NULL) {
-        return;
+        return 1;
     }
 
     char c;
@@ -36,9 +39,14 @@ void loadMap() {  // loads map from txt file into global variable
     }
 
     fclose(mapfile);
+    return 0;
 }
 
-void printMap() {  // prints map on console based on world.map[][]
+/*
+ * @ brief prints map on user's screen
+ * @ return 0
+ */
+void printMap() {
     for (int row = 0; row < MAP_HEIGHT; row++) {
         for (int col = 0; col < MAP_WIDTH; col++) {
             if (world.map[row][col] == WALL) {
@@ -56,14 +64,21 @@ void printMap() {  // prints map on console based on world.map[][]
     }
 }
 
+/*
+ * @ brief generates random starting objects
+ * @ return -
+ */
 void printInitialObjects() {
-    // function runs at the beginning, creates bushes and coins in random places
     for (int i = 0; i < TREASURES_AMOUNT / 2; i++) createObject(SMALL_TREASURE);
     for (int i = 0; i < TREASURES_AMOUNT / 4; i++) createObject(MEDIUM_TREASURE);
     for (int i = 0; i < TREASURES_AMOUNT / 4; i++) createObject(BIG_TREASURE);
     for (int i = 0; i < BUSHES_AMOUNT; i++) createObject(BUSH);
 }
 
+/*
+ * @ brief updates all player's and server info, such as coordinates, round, pids etc
+ * @ return -
+ */
 void updateInfo() {
     mvprintw(INFO_POS_Y, INFO_POS_X + 80, "%d    ", server.round);
 
@@ -90,6 +105,10 @@ void updateInfo() {
     }
 }
 
+/*
+ * @ brief prints data that doesn't need to be updated every turn
+ * @ return -
+ */
 void printInfo() {
     mvprintw(INFO_POS_Y, INFO_POS_X, "Server's PID: %d", server.pid);
     mvprintw(INFO_POS_Y, INFO_POS_X + 30, "Campsite's X/Y: %d/%d    ", world.campfire_row, world.campfire_col);
@@ -154,6 +173,13 @@ void printInfo() {
     updateInfo();
 }
 
+/*
+ * @ brief prints tile at desired location
+ * @ param type of tile to print
+ * @ param row of map
+ * @ param colum of map
+ * @ return -
+ */
 void printTile(enum TILE TYPE, int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return;
     int pair = TYPE;
@@ -185,6 +211,11 @@ void printTile(enum TILE TYPE, int row, int col) {
     }
 }
 
+/*
+ * @ brief creates object at random location
+ * @ param type of tile to create
+ * @ return -
+ */
 void createObject(enum TILE TYPE) {
     int flag = 1;
     while (flag) {
@@ -197,12 +228,24 @@ void createObject(enum TILE TYPE) {
     }
 }
 
+/*
+ * @ brief checks treasure value and set's it to 0
+ * @ param row of map
+ * @ param column of map
+ * @ return value of treasure
+ */
 int findTreasureAt(int row, int col) {
     int coins = world.treasure_map[row][col];
     world.treasure_map[row][col] = 0;
     return coins;
 }
 
+/*
+ * @ brief checks type of tile at given coordinates
+ * @ param row of map
+ * @ param column of map
+ * @ return type of found tile on success, -1 if tile isn't needed or parameters are invalid
+ */
 enum TILE getTileAt(int row, int col) {
     if ((row < 0) || (col < 0) || (row >= MAP_HEIGHT) || (col >= MAP_WIDTH)) return -1;
     // only checking these tiles, because if beast collides with a player, it kills it. Collision with another beast or wall is forbidden.
@@ -212,6 +255,10 @@ enum TILE getTileAt(int row, int col) {
     return -1;
 }
 
+/*
+ * @ brief refreshes all printed info
+ * @ return -
+ */
 void refreshScreen() {
     clear();
     printMap();

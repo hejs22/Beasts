@@ -14,7 +14,7 @@ struct World {
     int campfire_col;
 } world;
 
-void loadMap();
+int loadMap();
 void printMap();
 void printInfo();
 void updateInfo();

@@ -13,9 +13,6 @@
 
 #include "config.h"
 
-
-// DATA STRUCTURES //////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct client_socket {
     int network_socket;
     struct sockaddr_in server_address;
@@ -30,8 +27,10 @@ struct client_socket {
 
 pthread_mutex_t lock;
 
-// CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief closes connection, clears screen and exits
+ * @ return -
+ */
 void leaveGame() {
     close(this_client.network_socket);
     this_client.connected = 0;
@@ -43,29 +42,35 @@ void leaveGame() {
     exit(1);
 }
 
+/*
+ * @ brief sets up client's networking data
+ * @ return -
+ */
 void clientConfigure() {
-    // create a socket
-    this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);  // socket is created
-
-    // create address structure, specify address for the socket
+    this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);
     this_client.server_address.sin_family = AF_INET;
     this_client.server_address.sin_port = htons(9002);
     this_client.server_address.sin_addr.s_addr = INADDR_ANY;
 }
 
+/*
+ * @ brief waits for connection and exchanges necessary data
+ * @ return -
+ */
 void estabilishConnection() {
     int i = 0;
     while (i < 10) {
-        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address,
-                                        sizeof(this_client.server_address));
+        int connection_status = connect(this_client.network_socket, (struct sockaddr *) &this_client.server_address, sizeof(this_client.server_address));
         if (connection_status >= 0) break;
         printf("Waiting for server initialization...\n");
         usleep(TURN_TIME * 5);
         i++;
+        if (i == 10) {
+            leaveGame();
+        }
     }
 
     this_client.connected = 1;
-
     struct type_and_pid pid;
     pid.pid = getpid();
     pid.type = '0';
@@ -81,8 +86,10 @@ void estabilishConnection() {
     this_client.amount_of_beasts = 0;
 }
 
-// DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief receives data from server and checks if package was received
+ * @ return -
+ */
 void getInfo() {
     long bytes_received = recv(this_client.network_socket, this_client.maps, sizeof(this_client.maps), 0);
     if (bytes_received <= 0) {
@@ -90,8 +97,11 @@ void getInfo() {
     }
 }
 
-// GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief checks if given tile should be avoided by beast
+ * @ param tile that needs to be checked
+ * @ return 1 if tile is safe, 0 if it is not
+ */
 int isNotObstacle(char c) {
     if ((c == CAMPFIRE) || (c == WALL) || (c == BEAST_TILE)) {
         return 0;
@@ -99,14 +109,22 @@ int isNotObstacle(char c) {
     return 1;
 }
 
+/*
+ * @ brief checks if tile is player and therefore should be chasen
+ * @ return tile that needs to be checked
+ * @ return 1 if tile is player, 0 if not
+ */
 int isPlayer(char c) {
     if ((c >= FIRST_PLAYER) && (c <= FOURTH_PLAYER)) return 1;
     return 0;
 }
 
+/*
+ * @ brief scans area in search of player
+ * @ param area that needs to be scanned
+ * @ return location of closest player
+ */
 struct point scanArea(char map[BEAST_POV][BEAST_POV]) {
-    // returns location of player closest to beast, if there is any
-
     int row = BEAST_POV / 2;
     int col = BEAST_POV / 2;
 
@@ -130,6 +148,11 @@ struct point scanArea(char map[BEAST_POV][BEAST_POV]) {
     return p;
 }
 
+/*
+ * @ brief decides which way is best
+ * @ param beast's map
+ * @ return direction in which beast should go
+ */
 enum DIRECTION findPath(char map[BEAST_POV][BEAST_POV]) {
     // finds best direction in which this beast should go
 
@@ -167,23 +190,23 @@ enum DIRECTION findPath(char map[BEAST_POV][BEAST_POV]) {
         }
     }
 
-    // if there is no player nearby, choose random direction or wait
     return rand() % 5;
 }
 
+/*
+ * @ brief handles 1 beast connection, gets map and sends move requests
+ * @ param pointer to beast id
+ * @ return NULL
+ */
 void *handleBeast(void *arg) {
-    // reads map and decides where to go
     int beast_id = *(int *) arg;
     char request[3];
     while (this_client.connected) {
         pthread_mutex_lock(&lock);
-
-        // packs request into 3 chars array, which consists of beast's id, request, which is always MOVE and direction
         request[0] = beast_id;
         request[1] = MOVE;
 
         char map[BEAST_POV][BEAST_POV];
-        // gets map from client data
         memcpy(map, this_client.maps[beast_id], sizeof(this_client.maps[beast_id]));
 
         request[2] = findPath(map);
@@ -197,8 +220,11 @@ void *handleBeast(void *arg) {
     }
 }
 
+/*
+ * @ brief creates new thread for beast, initiated by SIGUSR1 signal
+ * @ return -
+ */
 void handleSpawn() {
-    // creates new thread for new beast
     if (this_client.amount_of_beasts < MAX_BEASTS) {
         pthread_t new;
         int beast_id = this_client.amount_of_beasts;
@@ -207,6 +233,10 @@ void handleSpawn() {
     }
 }
 
+/*
+ * @ brief gets maps every TURN_TIME microseconds
+ * @ return -
+ */
 void beastManager() {
     while (this_client.connected) {
         // gets map every TURN_TIME microseconds
@@ -216,12 +246,11 @@ void beastManager() {
     leaveGame();
 }
 
-int main() { // client application
+int main() {
     clientConfigure();
     estabilishConnection();
     srand(time(0));
 
-    // when SIGUSR1 arrives, create new beast
     signal(SIGUSR1, &handleSpawn);
     beastManager();
 

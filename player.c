@@ -7,8 +7,14 @@
 #include "world.h"
 #include "player.h"
 
+/*
+ * @ brief prints player's avatar on screen and updates world.map
+ * @ param pointer to player's structure
+ * @ param row of map
+ * @ param column of map
+ * @ return -
+ */
 void printPlayer(const struct Player *player, int row, int col) {
-    // prints players avatars on map and updates world.map[][]
     attron(COLOR_PAIR(player->avatar));
     attron(A_BOLD);
     if (world.map[row][col] != BUSH) {
@@ -19,10 +25,14 @@ void printPlayer(const struct Player *player, int row, int col) {
     attroff(COLOR_PAIR(player->avatar));
 }
 
+/*
+ * @ brief checks player's collision and handles it
+ * @ param pointer to player's structure
+ * @ param row of map
+ * @ param column of map
+ * @ return -
+ */
 void handleCollisionPlayer(struct Player *player, int row, int col) {
-    // checks multiple collision events and handles them
-
-    // if stepped on treasures, collect them
     if (world.map[row][col] == SMALL_TREASURE) player->coins_carried += 1;
     else if (world.map[row][col] == MEDIUM_TREASURE) player->coins_carried += 10;
     else if (world.map[row][col] == BIG_TREASURE) player->coins_carried += 50;
@@ -32,14 +42,11 @@ void handleCollisionPlayer(struct Player *player, int row, int col) {
                (world.map[row][col + 1] == CAMPFIRE) || (world.map[row][col - 1] == CAMPFIRE) ||
                (world.map[row + 1][col + 1] == CAMPFIRE) || (world.map[row - 1][col - 1] == CAMPFIRE) ||
                (world.map[row - 1][col + 1] == CAMPFIRE) || (world.map[row + 1][col - 1] == CAMPFIRE)) {
-        // if campfire is nearby, save player's coins
         player->coins_saved += player->coins_carried;
         player->coins_carried = 0;
     } else if (world.map[row][col] == BEAST_TILE) {
-        // if stepped on beast, die
         killPlayer(player);
     } else if ((world.map[row][col] >= FIRST_PLAYER) && (world.map[row][col] <= FOURTH_PLAYER)) {
-        // if stepped on another player, both dies
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if ((world.players[i] != NULL) && (world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {
                 killPlayer(world.players[i]);
@@ -47,20 +54,29 @@ void handleCollisionPlayer(struct Player *player, int row, int col) {
         }
         killPlayer(player);
     } else if (world.map[row][col] == BUSH) {
-        // if stepped on bush, wait 1 turn
         player->bush = 1;
     }
 }
 
-
+/*
+ * @ brief validates desired move
+ * @ param row of map
+ * @ param column of map
+ * @ return 0 if move is forbidden, 1 if move is possible
+ */
 int validMove(int row, int col) {
     if ((row < 0) || (col < 0) || (col >= MAP_WIDTH) || (row >= MAP_HEIGHT)) return 0;
     if ((world.map[row][col] == WALL) || (world.map[row][col] == CAMPFIRE)) return 0;
     return 1;
 }
 
+/*
+ * @ brief checks if player can move in desired direction, moves him and handles collision
+ * @ param pointer to player's structure
+ * @ param player's desired direction
+ * @ return -
+ */
 void movePlayer(struct Player *player, enum DIRECTION dir) {
-    // checks if player can move in desired direction, if so, changes his coordinates
     if (player == NULL) return;
 
     switch (dir) {
@@ -99,6 +115,11 @@ void movePlayer(struct Player *player, enum DIRECTION dir) {
     printPlayer(player, player->pos_row, player->pos_col);
 }
 
+/*
+ * @ brief creates new player and sets its starting parameters
+ * @ param socket that player is connected to
+ * @ return pointer to player's struct or NULL on failure
+ */
 struct Player *create_player(int socket) {
     struct Player *new = malloc(sizeof(struct Player));
     if (new == NULL) return NULL;
@@ -131,8 +152,12 @@ struct Player *create_player(int socket) {
     return new;
 }
 
+/*
+ * @ brief kills player, spawning him at his respawn point and drop his carried coins
+ * @ param pointer to player's struct
+ * @ return -
+ */
 void killPlayer(struct Player *player) {
-    // kill player, if he was hiding in bush, print bush in place of his deaths, else print empty space
     if (player->bush) {
         world.map[player->pos_row][player->pos_col] = BUSH;
         printTile(BUSH, player->pos_row, player->pos_col);
@@ -151,8 +176,12 @@ void killPlayer(struct Player *player) {
     player->deaths++;
 }
 
+/*
+ * @ brief deletes player's structure and cleans up
+ * @ param pointer to player's structure
+ * @ return -
+ */
 void deletePlayer(struct Player *player) {
-    // cleans up after player
     killPlayer(player);
     close(player->socket);
     free(player);
@@ -160,8 +189,12 @@ void deletePlayer(struct Player *player) {
     world.active_players--;
 }
 
+/*
+ * @ brief drops coins of killed player
+ * @ param pointer to player's structure
+ * @ return -
+ */
 void dropTreasure(const struct Player *player) {
-    // drops coins of player killed
     world.treasure_map[player->pos_row][player->pos_col] += player->coins_carried;
     printTile(DROPPED_TREASURE, player->pos_row, player->pos_col);
 };

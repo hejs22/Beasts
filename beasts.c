@@ -6,15 +6,25 @@
 #include "player.h"
 #include "beasts.h"
 
-
+/*
+ * @ brief checks if move is forbidden for beasts
+ * @ param row of desired location
+ * @ param col of desired location
+ * @ return 0 if forbidden, 1 if valid
+ */
 int validMoveBeasts(int row, int col) {
     if ((row < 0) || (col < 0) || (col >= MAP_WIDTH) || (row >= MAP_HEIGHT)) return 0;
     if ((world.map[row][col] == WALL) || (world.map[row][col] == CAMPFIRE) || (world.map[row][col] == BEAST_TILE)) return 0;
     return 1;
 }
 
+/*
+ * @ brief moves beast in desired location, handles it's collision and updates data
+ * @ param pointer to beast's struct
+ * @ param desired direction
+ * @ return -
+ */
 void moveBeast(struct Beast *beast, enum DIRECTION dir) {
-    // checks if beast can move in desired connection, if so, changes it coordinates and handles collision
     if (beast == NULL) return;
 
     printTile(beast->standing_at, beast->pos_row, beast->pos_col);
@@ -53,6 +63,10 @@ void moveBeast(struct Beast *beast, enum DIRECTION dir) {
     printTile(BEAST_TILE, beast->pos_row, beast->pos_col);
 }
 
+/*
+ * @ brief creates new beast and sets it's parameters
+ * @ return pointer to beast's structure
+ */
 struct Beast *createBeast() {
     struct Beast *new = malloc(sizeof(struct Beast));
     if (new == NULL) return NULL;
@@ -78,9 +92,28 @@ struct Beast *createBeast() {
     return new;
 }
 
-void handleCollisionBeast(struct Beast *beast, int row, int col) {
-    // checks multiple collision events and handles them
+/*
+ * @ brief safely deletes beast
+ * @ param pointer to beast's structure
+ * @ return -
+ */
+void killBeast(struct Beast *beast) {
+    if (beast != NULL) {
+        printTile(beast->standing_at, beast->pos_row, beast->pos_col);
+        world.active_beasts--;
+        free(beast);
+        beast = NULL;
+    }
+}
 
+/*
+ * @ brief checks multiple collision events and handles them
+ * @ param pointer to beast's structure
+ * @ param row of desired location
+ * @ param col of desired location
+ * @ return -
+ */
+void handleCollisionBeast(struct Beast *beast, int row, int col) {
     if ((world.map[row][col] >= FIRST_PLAYER) && (world.map[row][col] <= FOURTH_PLAYER)) {
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if ((world.players[i] != NULL) && (world.players[i]->pos_row == row) && (world.players[i]->pos_col == col)) {

@@ -14,8 +14,6 @@
 
 pthread_mutex_t lock;
 
-// DATA STRUCTURES //////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct client_socket {
     int network_socket;
     struct sockaddr_in server_address;
@@ -47,23 +45,25 @@ struct player_data_transfer {
     int round;
 };
 
-// CONNECTION MANAGEMENT //////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief configures client's parameters
+ * @ return -
+ */
 void clientConfigure() {
-    // create a socket
-    this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);  // socket is created
-
-    // create address structure, specify address for the socket
+    this_client.network_socket = socket(AF_INET, SOCK_STREAM, 0);
     this_client.server_address.sin_family = AF_INET;
     this_client.server_address.sin_port = htons(9002);
     this_client.server_address.sin_addr.s_addr = INADDR_ANY;
-
     this_client.round = -1;
     this_client.campfire_found = 0;
     this_client.camp_x = 0;
     this_client.camp_y = 0;
 }
 
+/*
+ * @ brief closes connection, clears screen, prints exit message and exits
+ * @ return -
+ */
 void leaveGame() {
     close(this_client.network_socket);
     this_client.connected = 0;
@@ -80,6 +80,10 @@ void leaveGame() {
     exit(0);
 }
 
+/*
+ * @ brief waits for connection, when connected sends necessary data
+ * @ return -
+ */
 void estabilishConnection() {
     int i = 0;
     while (i < 10) {
@@ -88,6 +92,9 @@ void estabilishConnection() {
         printf("Waiting for server initialization...\n");
         usleep(TURN_TIME * 5);
         i++;
+        if (i == 10) {
+            leaveGame();
+        }
     }
 
     this_client.connected = 1;
@@ -110,10 +117,12 @@ void estabilishConnection() {
     clear();
 }
 
-// USER GRAPHICAL INTERFACE ///////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief saves coorinates of campfire if seen for the first time
+ * @ param row of campfire's location on player's pov
+ * @ param column of campfire's location on player's pov
+ */
 void rememberCampfire(int row, int col) {
-    // remember coordinates of campfire if seen for the first time
     this_client.camp_x = row - (PLAYER_POV/2) + this_client.pos_row;
     this_client.camp_y = col - (PLAYER_POV/2) + this_client.pos_col;
     this_client.campfire_found = 1;
@@ -138,6 +147,10 @@ void printTileClient(enum TILE TYPE, int row, int col) {
     if (bold) attroff(A_BOLD);
 }
 
+/*
+ * @ brief prints data that doesn't need to be updated every turn
+ * @ return -
+ */
 void printLegend() {
     mvprintw(2, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Server's PID:");
     mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 10, "Campsite's X/Y: ");
@@ -192,6 +205,10 @@ void printLegend() {
     attroff(COLOR_PAIR(BEAST_TILE));
 }
 
+/*
+ * @ brief prints client's POV
+ * @ return -
+ */
 void printMapClient() {
     for (int row = 0; row < PLAYER_POV; row++) {
         for (int col = 0; col < PLAYER_POV; col++) {
@@ -201,6 +218,10 @@ void printMapClient() {
     move(0, 0);
 }
 
+/*
+ * @ brief prints client's data that changes every turn
+ * @ return -
+ */
 void printInfoClient() {
     mvprintw(2, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d    ", this_client.server_pid);
     mvprintw(3, CLIENT_INFO_POS_X + PLAYER_POV + 26, "%d/%d     ", this_client.camp_x, this_client.camp_y);
@@ -212,6 +233,10 @@ void printInfoClient() {
     mvprintw(9, CLIENT_INFO_POS_X + PLAYER_POV + 25, "%d      ", this_client.deaths);
 }
 
+/*
+ * @ brief inits screen and colors, prints starting info
+ * @ return -
+ */
 void initUiClient() {
     initscr();
     noecho();
@@ -244,8 +269,10 @@ void initUiClient() {
     printLegend();
 }
 
-// DATA TRANSFER /////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief safely receives data from server
+ * @ return -
+ */
 void getInfo() {
     struct player_data_transfer data;
     long bytes_received = recv(this_client.network_socket, (void *) &data, sizeof(data), 0);
@@ -267,15 +294,17 @@ void getInfo() {
     refresh();
 }
 
-// GAME LOGIC //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
+ * @ brief listens for keyboard input and handles it
+ * @ param pointer to type of player
+ * @ return -
+ */
 void *keyListener(void *arg) {
     enum PLAYERTYPE TYPE = *(enum PLAYERTYPE *) arg;
     cbreak();
     keypad(stdscr, TRUE);
 
     if (TYPE == CPU) {
-        // CPU client can disconnect with q
         while (this_client.connected) {
             int key = getch();
             pthread_mutex_lock(&lock);
@@ -290,7 +319,6 @@ void *keyListener(void *arg) {
             pthread_mutex_unlock(&lock);
         }
     } else if (TYPE == HUMAN) {
-        // HUMAN client can move with arrows, wsad, or disconnect with q
         while (this_client.connected) {
             int key = getch();
             pthread_mutex_lock(&lock);
@@ -329,7 +357,12 @@ void *keyListener(void *arg) {
     pthread_exit(NULL);
 }
 
-
+/*
+ * @ brief checks if client can step on this tile
+ * @ param row of client's map
+ * @ param column of client's map
+ * @ return 0 if move is forbidden, 1 if move is allowed
+ */
 int isNotObstacle(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
@@ -339,6 +372,12 @@ int isNotObstacle(int row, int col) {
     return 1;
 }
 
+/*
+ * @ brief checks if there are any coins on this tile
+ * @ param row of client's map
+ * @ param column of client's map
+ * @ return 1 if coins have been found, else 0
+ */
 int isCollectible(int row, int col) {
     row += (PLAYER_POV / 2);
     col += (PLAYER_POV / 2);
@@ -349,8 +388,11 @@ int isCollectible(int row, int col) {
     return 0;
 }
 
+/*
+ * @ brief scans area in search of dangers and coins
+ * @ return best found direction
+ */
 enum DIRECTION scanArea() {
-    // find relatively safe direction, if there are no dangers nearby, orders to collect coins
     enum DIRECTION dir = STOP;
 
     if (isCollectible(1, 0)) {
@@ -382,25 +424,10 @@ enum DIRECTION scanArea() {
     return dir;
 }
 
-void aiClient() {
-    // gets map, chooses direction, sends request
-    getInfo();
-    this_client.request[1] = scanArea();
-    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-    getInfo();
-    usleep(TURN_TIME);
-    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-}
-
-void humanClient() {
-    getInfo();
-    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-    this_client.request[0] = WAIT;
-    getInfo();
-    usleep(TURN_TIME);
-    send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
-}
-
+/*
+ * @ brief main game loop, checks player type, runs key listener, gets data and sends requests
+ * @ return -
+ */
 void gameClient() {
     pthread_t keyboardListener;
     pthread_create(&keyboardListener, NULL, keyListener, &this_client.playertype);
@@ -409,23 +436,31 @@ void gameClient() {
         this_client.request[0] = MOVE;
         srand(time(0));
         while (this_client.connected) {
-            aiClient();
+            getInfo();
+            this_client.request[1] = scanArea();
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+            getInfo();
+            usleep(TURN_TIME);
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
         }
 
     } else if (this_client.playertype == HUMAN) {
         while (this_client.connected) {
-            humanClient();
+            getInfo();
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
+            this_client.request[0] = WAIT;
+            getInfo();
+            usleep(TURN_TIME);
+            send(this_client.network_socket, this_client.request, sizeof(this_client.request), 0);
         }
         pthread_join(keyboardListener, NULL);
     }
     leaveGame();
 }
 
-int main() { // client application
-
+int main() {
     clientConfigure();
     estabilishConnection();
-
     initUiClient();
     printLegend();
     gameClient();
